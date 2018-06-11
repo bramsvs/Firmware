@@ -405,9 +405,6 @@ protected:
 	explicit MavlinkStreamStatustext(Mavlink *mavlink) : MavlinkStream(mavlink)
 	{}
 
-	~MavlinkStreamStatustext() = default;
-
-
 	bool send(const hrt_abstime t)
 	{
 		if (!_mavlink->get_logbuffer()->empty() && _mavlink->is_connected()) {
@@ -2855,7 +2852,8 @@ protected:
 				memcpy(&msg.q[0], &att_sp.q_d[0], sizeof(msg.q));
 
 			} else {
-				mavlink_euler_to_quaternion(att_sp.roll_body, att_sp.pitch_body, att_sp.yaw_body, msg.q);
+				matrix::Quatf q = matrix::Eulerf(att_sp.roll_body, att_sp.pitch_body, att_sp.yaw_body);
+				memcpy(&msg.q[0], q.data(), sizeof(msg.q));
 			}
 
 			msg.body_roll_rate = att_rates_sp.roll;
