@@ -52,6 +52,9 @@
 #include <mathlib/math/Limits.hpp>
 #include <mathlib/math/Functions.hpp>
 
+#include <uORB/uORB.h>
+#include <uORB/topics/debug_key_value.h>
+
 #define MIN_TAKEOFF_THRUST    0.2f
 #define TPA_RATE_LOWER_LIMIT 0.05f
 
@@ -62,6 +65,11 @@
 
 using namespace matrix;
 
+struct debug_key_value_s dbg {};
+
+int number_errors = 0;
+
+float _sample_rate_max = 1000.0f;
 
 int MulticopterAttitudeControl::print_usage(const char *reason)
 {
@@ -117,6 +125,7 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 
 	_rates_prev.zero();
 	_rates_prev_filtered.zero();
+	_att_control_prev.zero();
 	_rates_sp.zero();
 	_rates_int.zero();
 	_thrust_sp = 0.0f;
@@ -131,6 +140,13 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 	}
 
 	parameters_updated();
+
+
+	// /* advertise debug value */
+	dbg = { .value = 0.0f, .key = "att_dt" };
+	pub_dbg = orb_advertise(ORB_ID(debug_key_value), &dbg);
+	
+	PX4_INFO("DEBUG LOG INIT");
 }
 
 void
@@ -197,6 +213,8 @@ MulticopterAttitudeControl::parameters_updated()
 			M_DEG_TO_RAD_F * _board_offset_y.get(),
 			M_DEG_TO_RAD_F * _board_offset_z.get()));
 	_board_rotation = board_rotation_offset * _board_rotation;
+
+	_sample_rate_max = _att_rate_sample_rate_max.get();
 }
 
 void
@@ -480,7 +498,8 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 {
 	/* reset integral if disarmed */
 	if (!_v_control_mode.flag_armed || !_vehicle_status.is_rotary_wing) {
-		_rates_int.zero();
+		// _rates_int.zero();
+		_att_control.zero();
 	}
 
 	// get the raw gyro data and correct for thermal errors
@@ -515,9 +534,9 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 	rates(1) -= _sensor_bias.gyro_y_bias;
 	rates(2) -= _sensor_bias.gyro_z_bias;
 
-	Vector3f rates_p_scaled = _rate_p.emult(pid_attenuations(_tpa_breakpoint_p.get(), _tpa_rate_p.get()));
-	Vector3f rates_i_scaled = _rate_i.emult(pid_attenuations(_tpa_breakpoint_i.get(), _tpa_rate_i.get()));
-	Vector3f rates_d_scaled = _rate_d.emult(pid_attenuations(_tpa_breakpoint_d.get(), _tpa_rate_d.get()));
+	// Vector3f rates_p_scaled = _rate_p.emult(pid_attenuations(_tpa_breakpoint_p.get(), _tpa_rate_p.get()));
+	// Vector3f rates_i_scaled = _rate_i.emult(pid_attenuations(_tpa_breakpoint_i.get(), _tpa_rate_i.get()));
+	// Vector3f rates_d_scaled = _rate_d.emult(pid_attenuations(_tpa_breakpoint_d.get(), _tpa_rate_d.get()));
 
 	/* angular rates error */
 	Vector3f rates_err = _rates_sp - rates;
@@ -528,10 +547,30 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 		_lp_filters_d[1].apply(rates(1)),
 		_lp_filters_d[2].apply(rates(2)));
 
-	_att_control = rates_p_scaled.emult(rates_err) +
-		       _rates_int -
-		       rates_d_scaled.emult(rates_filtered - _rates_prev_filtered) / dt +
-		       _rate_ff.emult(_rates_sp);
+	// _att_control = rates_p_scaled.emult(rates_err) +
+	// 	       _rates_int -
+	// 	       rates_d_scaled.emult(rates_filtered - _rates_prev_filtered) / dt +
+	// 	       _rate_ff.emult(_rates_sp);
+
+	// matrix::Matrix3f control_effectiveness = eye<float, 3>()*100;
+	// matrix::Matrix3f inertia = eye<float, 3>();
+
+	// inertia data taken from iris.sdf
+	float data[9] = {0.0347563, 0, 0,
+                     0, 0.0458929, 0,
+                     0, 0, 0.0977
+                    };
+    SquareMatrix<float, 3> inertia(data);
+
+	Vector3f angular_acceleration_desired = (rates_err ) * 5;
+	Vector3f _angular_acceleration_filtered = (rates_filtered - _rates_prev_filtered) / dt;
+
+	// _att_control = _att_control_prev + 
+	// 	inertia * control_effectiveness.I() * (angular_acceleration_desired - _angular_acceleration_filtered);
+
+	Vector3f _att_control_increment = inertia * (angular_acceleration_desired - _angular_acceleration_filtered)/20;
+
+	// _att_control_prev = _att_control;
 
 	_rates_prev = rates;
 	_rates_prev_filtered = rates_filtered;
@@ -553,29 +592,52 @@ MulticopterAttitudeControl::control_attitude_rates(float dt)
 
 			// prevent further positive control saturation
 			if (positive_saturation) {
-				rates_err(i) = math::min(rates_err(i), 0.0f);
-
+				PX4_WARN("Positive saturation");
+				// rates_err(i) = math::min(rates_err(i), 0.0f);
+				_att_control_increment(i) = math::min(_att_control_increment(i), 0.0f);
+				
 			}
 
 			// prevent further negative control saturation
 			if (negative_saturation) {
-				rates_err(i) = math::max(rates_err(i), 0.0f);
+				PX4_WARN("Negative saturation");
+				// rates_err(i) = math::max(rates_err(i), 0.0f);
+				_att_control_increment(i) = math::max(_att_control_increment(i), 0.0f);
 
 			}
 
 			// Perform the integration using a first order method and do not propagate the result if out of range or invalid
-			float rate_i = _rates_int(i) + rates_i_scaled(i) * rates_err(i) * dt;
+			// float rate_i = _rates_int(i) + rates_i_scaled(i) * rates_err(i) * dt;
 
-			if (PX4_ISFINITE(rate_i) && rate_i > -_rate_int_lim(i) && rate_i < _rate_int_lim(i)) {
-				_rates_int(i) = rate_i;
+			// if (PX4_ISFINITE(rate_i) && rate_i > -_rate_int_lim(i) && rate_i < _rate_int_lim(i)) {
+			// 	_rates_int(i) = rate_i;
 
+			// }
+
+			float _att_control_i = _att_control(i) + _att_control_increment(i);
+
+			bool inside_rate_limits =
+			 	PX4_ISFINITE(_att_control_i) && 
+			 	_att_control_i > -_rate_int_lim(i) && 
+			 	_att_control_i < _rate_int_lim(i);
+
+			if (inside_rate_limits) {
+				_att_control(i) = _att_control_i;
+			} else {
+				// PX4_WARN("Att_control reached rate_int_limits on axis %i [%i]", i, number_errors);
+				number_errors++;
 			}
 		}
 	}
 
 	/* explicitly limit the integrator state */
+	// for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
+	// 	_rates_int(i) = math::constrain(_rates_int(i), -_rate_int_lim(i), _rate_int_lim(i));
+
+	// }
+
 	for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
-		_rates_int(i) = math::constrain(_rates_int(i), -_rate_int_lim(i), _rate_int_lim(i));
+		_att_control(i) = math::constrain(_att_control(i), -_rate_int_lim(i), _rate_int_lim(i));
 
 	}
 }
@@ -617,6 +679,8 @@ MulticopterAttitudeControl::run()
 	const hrt_abstime task_start = hrt_absolute_time();
 	hrt_abstime last_run = task_start;
 	float dt_accumulator = 0.f;
+	float dt_log_accumulator = 0.f;
+
 	int loop_counter = 0;
 
 	while (!should_exit()) {
@@ -641,19 +705,42 @@ MulticopterAttitudeControl::run()
 
 		perf_begin(_loop_perf);
 
+		const hrt_abstime now = hrt_absolute_time();
+		float dt = (now - last_run) / 1e6f;
+
+		float dt_min = 1.0f / _sample_rate_max;
+
+		if (dt < dt_min) {
+			continue;
+		}
+
+		// if (loop_counter % 200 == 0) {
+		// 	PX4_WARN("%f, %f", dt, dt_min);
+		// }
+
+
 		/* run controller on gyro changes */
 		if (poll_fds.revents & POLLIN) {
-			const hrt_abstime now = hrt_absolute_time();
-			float dt = (now - last_run) / 1e6f;
+
 			last_run = now;
 
-			/* guard against too small (< 2ms) and too large (> 20ms) dt's */
-			if (dt < 0.002f) {
-				dt = 0.002f;
+			// /* guard against too small (< 2ms) and too large (> 20ms) dt's */
+			// if (dt < 0.002f) {
+			// 	dt = 0.002f;
 
-			} else if (dt > 0.02f) {
-				dt = 0.02f;
+			// } else if (dt > 0.02f) {
+			// 	dt = 0.02f;
+			// }
+
+			if (dt_log_accumulator > 0.1) {
+				dbg.value = 1/dt;
+				orb_publish(ORB_ID(debug_key_value), pub_dbg, &dbg);
+				// PX4_INFO("ATT_DT: %f", dbg.value);
+				dt_log_accumulator = 0;
 			}
+
+
+			dt_log_accumulator += dt;
 
 			/* copy gyro data */
 			orb_copy(ORB_ID(sensor_gyro), _sensor_gyro_sub[_selected_gyro], &_sensor_gyro);
@@ -768,9 +855,9 @@ MulticopterAttitudeControl::run()
 				rate_ctrl_status.rollspeed = _rates_prev(0);
 				rate_ctrl_status.pitchspeed = _rates_prev(1);
 				rate_ctrl_status.yawspeed = _rates_prev(2);
-				rate_ctrl_status.rollspeed_integ = _rates_int(0);
-				rate_ctrl_status.pitchspeed_integ = _rates_int(1);
-				rate_ctrl_status.yawspeed_integ = _rates_int(2);
+				// rate_ctrl_status.rollspeed_integ = _rates_int(0);
+				// rate_ctrl_status.pitchspeed_integ = _rates_int(1);
+				// rate_ctrl_status.yawspeed_integ = _rates_int(2);
 
 				int instance;
 				orb_publish_auto(ORB_ID(rate_ctrl_status), &_controller_status_pub, &rate_ctrl_status, &instance, ORB_PRIO_DEFAULT);

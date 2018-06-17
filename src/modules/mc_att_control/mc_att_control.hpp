@@ -175,6 +175,7 @@ private:
 	matrix::Vector3f _rates_int;			/**< angular rates integral error */
 	float _thrust_sp;				/**< thrust setpoint */
 	matrix::Vector3f _att_control;			/**< attitude control vector */
+	matrix::Vector3f _att_control_prev;			/**< attitude control vector on previous step (for INDI) */
 
 	matrix::Dcmf _board_rotation;			/**< rotation matrix for the orientation that the board is mounted */
 
@@ -234,7 +235,8 @@ private:
 		(ParamFloat<px4::params::SENS_BOARD_Y_OFF>) _board_offset_y,
 		(ParamFloat<px4::params::SENS_BOARD_Z_OFF>) _board_offset_z,
 
-		(ParamFloat<px4::params::VT_WV_YAWR_SCL>) _vtol_wv_yaw_rate_scale		/**< Scale value [0, 1] for yaw rate setpoint  */
+		(ParamFloat<px4::params::VT_WV_YAWR_SCL>) _vtol_wv_yaw_rate_scale,		/**< Scale value [0, 1] for yaw rate setpoint  */
+		(ParamFloat<px4::params::MC_ATT_RATE_MAX>) _att_rate_sample_rate_max
 	)
 
 	matrix::Vector3f _attitude_p;		/**< P gain for attitude control */
@@ -248,5 +250,6 @@ private:
 	matrix::Vector3f _auto_rate_max;	/**< attitude rate limits in auto modes */
 	matrix::Vector3f _acro_rate_max;	/**< max attitude rates in acro mode */
 
+	orb_advert_t pub_dbg {nullptr};
 };
 
