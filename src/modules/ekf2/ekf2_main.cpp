@@ -51,6 +51,7 @@
 #include <px4_time.h>
 #include <uORB/Publication.hpp>
 #include <uORB/topics/airspeed.h>
+#include <uORB/topics/att_pos_mocap.h> 
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/ekf2_innovations.h>
 #include <uORB/topics/ekf2_timestamps.h>
@@ -169,6 +170,7 @@ private:
 	int _airspeed_sub{-1};
 	int _ev_att_sub{-1};
 	int _ev_pos_sub{-1};
+	int _mocap_sub{-1};
 	int _gps_sub{-1};
 	int _landing_target_pose_sub{-1};
 	int _magnetometer_sub{-1};
@@ -501,6 +503,7 @@ Ekf2::Ekf2():
 	_airspeed_sub = orb_subscribe(ORB_ID(airspeed));
 	_ev_att_sub = orb_subscribe(ORB_ID(vehicle_vision_attitude));
 	_ev_pos_sub = orb_subscribe(ORB_ID(vehicle_vision_position));
+	_mocap_sub = orb_subscribe(ORB_ID(att_pos_mocap));
 	_gps_sub = orb_subscribe(ORB_ID(vehicle_gps_position));
 	_landing_target_pose_sub = orb_subscribe(ORB_ID(landing_target_pose));
 	_magnetometer_sub = orb_subscribe(ORB_ID(vehicle_magnetometer));
@@ -949,8 +952,37 @@ void Ekf2::run()
 		// if error estimates are unavailable, use parameter defined defaults
 		bool vision_position_updated = false;
 		bool vision_attitude_updated = false;
+		bool mocap_updated = false;
 		orb_check(_ev_pos_sub, &vision_position_updated);
 		orb_check(_ev_att_sub, &vision_attitude_updated);
+
+		orb_check(_mocap_sub, &mocap_updated);
+		att_pos_mocap_s mocap = {};
+
+		if (mocap_updated) {
+			orb_copy(ORB_ID(att_pos_mocap),_mocap_sub, &mocap);
+		}
+
+
+		if (mocap_updated) {
+
+			ext_vision_message ev_data;
+			ev_data.posNED(0) = mocap.x;
+			ev_data.posNED(1) = mocap.y;
+			ev_data.posNED(2) = mocap.z;
+			matrix::Quatf  q(mocap.q);
+			ev_data.quat = q;
+
+			// position measurement error
+			ev_data.posErr = _ev_pos_noise.get();
+
+			// angle measurement error
+			ev_data.angErr = _ev_ang_noise.get();
+
+			// use timestamp from external computer, clocks are synchronized when using MAVROS
+			_ekf.setExtVisionData(mocap.timestamp, &ev_data);
+		}
+
 
 		if (vision_position_updated || vision_attitude_updated) {
 			// copy both attitude & position if either updated, we need both to fill a single ext_vision_message
