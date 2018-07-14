@@ -57,7 +57,6 @@
 #include <px4_workqueue.h>
 #include <arch/board/board.h>
 
-#include <systemlib/airspeed.h>
 #include <systemlib/err.h>
 #include <parameters/param.h>
 #include <perf/perf_counter.h>
@@ -118,7 +117,7 @@ protected:
 
 	struct work_s			_work;
 	bool			_sensor_ok;
-	unsigned			_measure_ticks;
+	int			_measure_ticks;
 	bool			_collect_phase;
 	float			_diff_pres_offset;
 
@@ -126,7 +125,7 @@ protected:
 
 	int			_class_instance;
 
-	unsigned		_conversion_interval;
+	int		_conversion_interval;
 
 	perf_counter_t		_sample_perf;
 	perf_counter_t		_comms_errors;

@@ -79,17 +79,15 @@
 #include <sys/statfs.h>
 #endif
 
+#include <airspeed/airspeed.h>
+#include <ecl/geo/geo.h>
 #include <mathlib/mathlib.h>
-
 #include <conversion/rotation.h>
-
 #include <parameters/param.h>
-#include <systemlib/systemlib.h>
 #include <systemlib/mavlink_log.h>
 #include <systemlib/err.h>
-#include <systemlib/airspeed.h>
+
 #include <commander/px4_custom_mode.h>
-#include <lib/ecl/geo/geo.h>
 
 #include <uORB/topics/vehicle_command_ack.h>
 
@@ -98,9 +96,11 @@
 #include "mavlink_main.h"
 #include "mavlink_command_sender.h"
 
+using matrix::wrap_2pi;
+
 MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_mavlink(parent),
-	_mission_manager(nullptr),
+	_mission_manager(parent),
 	_parameters_manager(parent),
 	_mavlink_ftp(parent),
 	_mavlink_log_handler(parent),
@@ -137,6 +137,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_rc_pub(nullptr),
 	_manual_pub(nullptr),
 	_obstacle_distance_pub(nullptr),
+	_trajectory_waypoint_pub(nullptr),
 	_land_detector_pub(nullptr),
 	_follow_target_pub(nullptr),
 	_landing_target_pose_pub(nullptr),
@@ -163,20 +164,12 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_p_bat_crit_thr(param_find("BAT_CRIT_THR")),
 	_p_bat_low_thr(param_find("BAT_LOW_THR"))
 {
-	if (_mavlink->get_mode() != Mavlink::MAVLINK_MODE_IRIDIUM) {
-		_mission_manager = new MavlinkMissionManager(parent);
-	}
 }
 
 MavlinkReceiver::~MavlinkReceiver()
 {
 	orb_unsubscribe(_control_mode_sub);
 	orb_unsubscribe(_actuator_armed_sub);
-
-	if (_mission_manager != nullptr) {
-		delete _mission_manager;
-		_mission_manager = nullptr;
-	}
 }
 
 void MavlinkReceiver::acknowledge(uint8_t sysid, uint8_t compid, uint16_t command, uint8_t result)
@@ -334,6 +327,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_OBSTACLE_DISTANCE:
 		handle_message_obstacle_distance(msg);
+		break;
+
+	case MAVLINK_MSG_ID_TRAJECTORY:
+		handle_message_trajectory(msg);
 		break;
 
 	case MAVLINK_MSG_ID_NAMED_VALUE_FLOAT:
@@ -495,8 +492,8 @@ MavlinkReceiver::handle_message_command_long(mavlink_message_t *msg)
 
 	struct vehicle_command_s vcmd = {
 		.timestamp = hrt_absolute_time(),
-		.param5 = cmd_mavlink.param5,
-		.param6 = cmd_mavlink.param6,
+		.param5 = (double)cmd_mavlink.param5,
+		.param6 = (double)cmd_mavlink.param6,
 		/* Copy the content of mavlink_command_long_t cmd_mavlink into command_t cmd */
 		.param1 = cmd_mavlink.param1,
 		.param2 = cmd_mavlink.param2,
@@ -1638,6 +1635,79 @@ MavlinkReceiver::handle_message_obstacle_distance(mavlink_message_t *msg)
 	}
 }
 
+void
+MavlinkReceiver::handle_message_trajectory(mavlink_message_t *msg)
+{
+	mavlink_trajectory_t trajectory;
+	mavlink_msg_trajectory_decode(msg, &trajectory);
+
+	if (trajectory.type == vehicle_trajectory_waypoint_s::MAV_TRAJECTORY_REPRESENTATION_WAYPOINTS) {
+
+		struct vehicle_trajectory_waypoint_s trajectory_waypoint = {};
+
+		trajectory_waypoint.timestamp = hrt_absolute_time();
+		trajectory_waypoint.type = trajectory.type;
+
+
+		matrix::Vector3f(trajectory.point_1[0], trajectory.point_1[1],
+				 trajectory.point_1[2]).copyTo(trajectory_waypoint.waypoints[0].position);
+		matrix::Vector3f(trajectory.point_1[3], trajectory.point_1[4],
+				 trajectory.point_1[5]).copyTo(trajectory_waypoint.waypoints[0].velocity);
+		matrix::Vector3f(trajectory.point_1[6], trajectory.point_1[7],
+				 trajectory.point_1[8]).copyTo(trajectory_waypoint.waypoints[0].acceleration);
+		trajectory_waypoint.waypoints[0].yaw = trajectory.point_1[9];
+		trajectory_waypoint.waypoints[0].yaw_speed = trajectory.point_1[10];
+		trajectory_waypoint.waypoints[0].point_valid = trajectory.point_valid[0];
+
+		matrix::Vector3f(trajectory.point_2[0], trajectory.point_2[1],
+				 trajectory.point_2[2]).copyTo(trajectory_waypoint.waypoints[1].position);
+		matrix::Vector3f(trajectory.point_2[3], trajectory.point_2[4],
+				 trajectory.point_2[5]).copyTo(trajectory_waypoint.waypoints[1].velocity);
+		matrix::Vector3f(trajectory.point_2[6], trajectory.point_2[7],
+				 trajectory.point_2[8]).copyTo(trajectory_waypoint.waypoints[1].acceleration);
+		trajectory_waypoint.waypoints[1].yaw = trajectory.point_2[9];
+		trajectory_waypoint.waypoints[1].yaw_speed = trajectory.point_2[10];
+		trajectory_waypoint.waypoints[1].point_valid = trajectory.point_valid[1];
+
+		matrix::Vector3f(trajectory.point_3[0], trajectory.point_3[1],
+				 trajectory.point_3[2]).copyTo(trajectory_waypoint.waypoints[2].position);
+		matrix::Vector3f(trajectory.point_3[3], trajectory.point_3[4],
+				 trajectory.point_3[5]).copyTo(trajectory_waypoint.waypoints[2].velocity);
+		matrix::Vector3f(trajectory.point_3[6], trajectory.point_3[7],
+				 trajectory.point_3[8]).copyTo(trajectory_waypoint.waypoints[2].acceleration);
+		trajectory_waypoint.waypoints[2].yaw = trajectory.point_3[9];
+		trajectory_waypoint.waypoints[2].yaw_speed = trajectory.point_3[10];
+		trajectory_waypoint.waypoints[2].point_valid = trajectory.point_valid[2];
+
+		matrix::Vector3f(trajectory.point_4[0], trajectory.point_4[1],
+				 trajectory.point_4[2]).copyTo(trajectory_waypoint.waypoints[3].position);
+		matrix::Vector3f(trajectory.point_4[3], trajectory.point_4[4],
+				 trajectory.point_4[5]).copyTo(trajectory_waypoint.waypoints[3].velocity);
+		matrix::Vector3f(trajectory.point_4[6], trajectory.point_4[7],
+				 trajectory.point_4[8]).copyTo(trajectory_waypoint.waypoints[3].acceleration);
+		trajectory_waypoint.waypoints[3].yaw = trajectory.point_4[9];
+		trajectory_waypoint.waypoints[3].yaw_speed = trajectory.point_4[10];
+		trajectory_waypoint.waypoints[3].point_valid = trajectory.point_valid[3];
+
+		matrix::Vector3f(trajectory.point_5[0], trajectory.point_5[1],
+				 trajectory.point_5[2]).copyTo(trajectory_waypoint.waypoints[4].position);
+		matrix::Vector3f(trajectory.point_5[3], trajectory.point_5[4],
+				 trajectory.point_5[5]).copyTo(trajectory_waypoint.waypoints[4].velocity);
+		matrix::Vector3f(trajectory.point_5[6], trajectory.point_5[7],
+				 trajectory.point_5[8]).copyTo(trajectory_waypoint.waypoints[4].acceleration);
+		trajectory_waypoint.waypoints[4].yaw = trajectory.point_5[9];
+		trajectory_waypoint.waypoints[4].yaw_speed = trajectory.point_5[10];
+		trajectory_waypoint.waypoints[4].point_valid = trajectory.point_valid[4];
+
+		if (_trajectory_waypoint_pub == nullptr) {
+			_trajectory_waypoint_pub = orb_advertise(ORB_ID(vehicle_trajectory_waypoint), &trajectory_waypoint);
+
+		} else {
+			orb_publish(ORB_ID(vehicle_trajectory_waypoint), _trajectory_waypoint_pub, &trajectory_waypoint);
+		}
+	}
+}
+
 switch_pos_t
 MavlinkReceiver::decode_switch_pos(uint16_t buttons, unsigned sw)
 {
@@ -1844,7 +1914,7 @@ MavlinkReceiver::handle_message_heartbeat(mavlink_message_t *msg)
 int
 MavlinkReceiver::set_message_interval(int msgId, float interval, int data_rate)
 {
-	if (msgId == 0) {
+	if (msgId == MAVLINK_MSG_ID_HEARTBEAT) {
 		return PX4_ERROR;
 	}
 
@@ -1853,18 +1923,16 @@ MavlinkReceiver::set_message_interval(int msgId, float interval, int data_rate)
 	}
 
 	// configure_stream wants a rate (msgs/second), so convert here.
-	float rate = 0;
+	float rate = 0.f;
 
-	if (interval < 0) {
-		// stop the stream.
-		rate = 0;
+	if (interval < -0.00001f) {
+		rate = 0.f; // stop the stream
 
-	} else if (interval > 0) {
+	} else if (interval > 0.00001f) {
 		rate = 1000000.0f / interval;
 
 	} else {
-		// note: mavlink spec says rate == 0 is requesting a default rate but our streams
-		// don't publish a default rate so for now let's pick a default rate of zero.
+		rate = -2.f; // set default rate
 	}
 
 	bool found_id = false;
@@ -2066,7 +2134,7 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 	hil_gps.vel_e_m_s = gps.ve * 1e-2f; // from cm to m
 	hil_gps.vel_d_m_s = gps.vd * 1e-2f; // from cm to m
 	hil_gps.vel_ned_valid = true;
-	hil_gps.cog_rad = _wrap_pi(gps.cog * M_DEG_TO_RAD_F * 1e-2f);
+	hil_gps.cog_rad = ((gps.cog == 65535) ? NAN : wrap_2pi(math::radians(gps.cog * 1e-2f)));
 
 	hil_gps.fix_type = gps.fix_type;
 	hil_gps.satellites_used = gps.satellites_visible;  //TODO: rename mavlink_hil_gps_t sats visible to used?
@@ -2546,7 +2614,7 @@ MavlinkReceiver::receive_thread(void *arg)
 				// could be TCP or other protocol
 			}
 
-			struct sockaddr_in *srcaddr_last = _mavlink->get_client_source_address();
+			struct sockaddr_in &srcaddr_last = _mavlink->get_client_source_address();
 
 			int localhost = (127 << 24) + 1;
 
@@ -2558,9 +2626,9 @@ MavlinkReceiver::receive_thread(void *arg)
 				hrt_abstime stime = _mavlink->get_start_time();
 
 				if ((stime != 0 && (hrt_elapsed_time(&stime) > 3 * 1000 * 1000))
-				    || (srcaddr_last->sin_addr.s_addr == htonl(localhost))) {
-					srcaddr_last->sin_addr.s_addr = srcaddr.sin_addr.s_addr;
-					srcaddr_last->sin_port = srcaddr.sin_port;
+				    || (srcaddr_last.sin_addr.s_addr == htonl(localhost))) {
+					srcaddr_last.sin_addr.s_addr = srcaddr.sin_addr.s_addr;
+					srcaddr_last.sin_port = srcaddr.sin_port;
 					_mavlink->set_client_source_initialized();
 					PX4_INFO("partner IP: %s", inet_ntoa(srcaddr.sin_addr));
 				}
@@ -2584,9 +2652,8 @@ MavlinkReceiver::receive_thread(void *arg)
 						handle_message(&msg);
 
 						/* handle packet with mission manager */
-						if (_mission_manager != nullptr) {
-							_mission_manager->handle_message(&msg);
-						}
+						_mission_manager.handle_message(&msg);
+
 
 						/* handle packet with parameter component */
 						_parameters_manager.handle_message(&msg);
@@ -2617,10 +2684,8 @@ MavlinkReceiver::receive_thread(void *arg)
 		hrt_abstime t = hrt_absolute_time();
 
 		if (t - last_send_update > timeout * 1000) {
-			if (_mission_manager != nullptr) {
-				_mission_manager->check_active_mission();
-				_mission_manager->send(t);
-			}
+			_mission_manager.check_active_mission();
+			_mission_manager.send(t);
 
 			_parameters_manager.send(t);
 

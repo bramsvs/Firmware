@@ -39,11 +39,6 @@
  * @author Anton Babushkin <anton.babushkin@me.com>
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <math.h>
-#include <float.h>
-
 #include "mavlink_main.h"
 #include "mavlink_messages.h"
 #include "mavlink_command_sender.h"
@@ -57,7 +52,6 @@
 #include <mathlib/mathlib.h>
 #include <matrix/math.hpp>
 #include <px4_time.h>
-#include <systemlib/err.h>
 #include <systemlib/mavlink_log.h>
 
 #include <uORB/topics/actuator_armed.h>
@@ -80,6 +74,7 @@
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/manual_control_setpoint.h>
 #include <uORB/topics/mavlink_log.h>
+#include <uORB/topics/vehicle_trajectory_waypoint.h>
 #include <uORB/topics/optical_flow.h>
 #include <uORB/topics/position_setpoint_triplet.h>
 #include <uORB/topics/sensor_combined.h>
@@ -108,6 +103,8 @@
 #include <uORB/topics/vehicle_air_data.h>
 #include <uORB/topics/vehicle_magnetometer.h>
 #include <uORB/uORB.h>
+
+using matrix::wrap_2pi;
 
 static uint16_t cm_uint16_from_m_float(float m);
 
@@ -470,7 +467,7 @@ private:
 
 protected:
 	explicit MavlinkStreamCommandLong(Mavlink *mavlink) : MavlinkStream(mavlink),
-		_cmd_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_command)))
+		_cmd_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_command), 0, true))
 	{}
 
 	bool send(const hrt_abstime t)
@@ -1027,9 +1024,6 @@ public:
 	}
 
 private:
-	MavlinkOrbSubscription *_att_sub;
-	uint64_t _att_time;
-
 	MavlinkOrbSubscription *_pos_sub;
 	uint64_t _pos_time;
 
@@ -1050,8 +1044,6 @@ private:
 
 protected:
 	explicit MavlinkStreamVFRHUD(Mavlink *mavlink) : MavlinkStream(mavlink),
-		_att_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_attitude))),
-		_att_time(0),
 		_pos_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_local_position))),
 		_pos_time(0),
 		_armed_sub(_mavlink->add_orb_subscription(ORB_ID(actuator_armed))),
@@ -1065,24 +1057,20 @@ protected:
 
 	bool send(const hrt_abstime t)
 	{
-		vehicle_attitude_s att = {};
 		vehicle_local_position_s pos = {};
 		actuator_armed_s armed = {};
 		airspeed_s airspeed = {};
 
-
 		bool updated = false;
-		updated |= _att_sub->update(&_att_time, &att);
 		updated |= _pos_sub->update(&_pos_time, &pos);
 		updated |= _armed_sub->update(&_armed_time, &armed);
 		updated |= _airspeed_sub->update(&_airspeed_time, &airspeed);
 
 		if (updated) {
 			mavlink_vfr_hud_t msg = {};
-			matrix::Eulerf euler = matrix::Quatf(att.q);
 			msg.airspeed = airspeed.indicated_airspeed_m_s;
 			msg.groundspeed = sqrtf(pos.vx * pos.vx + pos.vy * pos.vy);
-			msg.heading = _wrap_2pi(euler.psi()) * M_RAD_TO_DEG_F;
+			msg.heading = math::degrees(wrap_2pi(pos.yaw));
 
 			if (armed.armed) {
 				actuator_controls_s act0 = {};
@@ -1198,7 +1186,7 @@ protected:
 			msg.vel_acc = gps.s_variance_m_s * 1e3f;
 			msg.hdg_acc = gps.c_variance_rad * 1e5f / M_DEG_TO_RAD_F;
 			msg.vel = cm_uint16_from_m_float(gps.vel_m_s);
-			msg.cog = _wrap_2pi(gps.cog_rad) * M_RAD_TO_DEG_F * 1e2f;
+			msg.cog = math::degrees(wrap_2pi(gps.cog_rad)) * 1e2f;
 			msg.satellites_visible = gps.satellites_used;
 
 			mavlink_msg_gps_raw_int_send_struct(_mavlink->get_channel(), &msg);
@@ -1565,8 +1553,8 @@ protected:
 
 				struct vehicle_command_s cmd = {
 					.timestamp = 0,
-					.param5 = NAN,
-					.param6 = NAN,
+					.param5 = (double)NAN,
+					.param6 = (double)NAN,
 					.param1 = 0.0f, // all cameras
 					.param2 = 0.0f, // duration 0 because only taking one picture
 					.param3 = 1.0f, // only take one
@@ -1795,7 +1783,7 @@ protected:
 			msg.vy = lpos.vy * 100.0f;
 			msg.vz = lpos.vz * 100.0f;
 
-			msg.hdg = _wrap_2pi(lpos.yaw) * M_RAD_TO_DEG_F * 100.0f;
+			msg.hdg = math::degrees(wrap_2pi(lpos.yaw)) * 100.0f;
 
 			mavlink_msg_global_position_int_send_struct(_mavlink->get_channel(), &msg);
 
@@ -2673,8 +2661,9 @@ public:
 	}
 
 private:
+	MavlinkOrbSubscription *_control_mode_sub;
+	MavlinkOrbSubscription *_lpos_sp_sub;
 	MavlinkOrbSubscription *_pos_sp_triplet_sub;
-	uint64_t _pos_sp_triplet_timestamp{0};
 
 	/* do not allow top copying this class */
 	MavlinkStreamPositionTargetGlobalInt(MavlinkStreamPositionTargetGlobalInt &) = delete;
@@ -2682,25 +2671,54 @@ private:
 
 protected:
 	explicit MavlinkStreamPositionTargetGlobalInt(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_control_mode_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_control_mode))),
+		_lpos_sp_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_local_position_setpoint))),
 		_pos_sp_triplet_sub(_mavlink->add_orb_subscription(ORB_ID(position_setpoint_triplet)))
 	{}
 
 	bool send(const hrt_abstime t)
 	{
-		position_setpoint_triplet_s pos_sp_triplet;
+		vehicle_control_mode_s control_mode = {};
+		_control_mode_sub->update(&control_mode);
 
-		if (_pos_sp_triplet_sub->update(&_pos_sp_triplet_timestamp, &pos_sp_triplet)) {
-			mavlink_position_target_global_int_t msg = {};
+		if (control_mode.flag_control_position_enabled) {
 
-			msg.time_boot_ms = hrt_absolute_time() / 1000;
-			msg.coordinate_frame = MAV_FRAME_GLOBAL;
-			msg.lat_int = pos_sp_triplet.current.lat * 1e7;
-			msg.lon_int = pos_sp_triplet.current.lon * 1e7;
-			msg.alt = pos_sp_triplet.current.alt;
+			position_setpoint_triplet_s pos_sp_triplet;
+			_pos_sp_triplet_sub->update(&pos_sp_triplet);
 
-			mavlink_msg_position_target_global_int_send_struct(_mavlink->get_channel(), &msg);
+			if (pos_sp_triplet.timestamp > 0 && pos_sp_triplet.current.valid
+			    && PX4_ISFINITE(pos_sp_triplet.current.lat) && PX4_ISFINITE(pos_sp_triplet.current.lon)) {
 
-			return true;
+				mavlink_position_target_global_int_t msg = {};
+
+				msg.time_boot_ms = hrt_absolute_time() / 1000;
+				msg.coordinate_frame = MAV_FRAME_GLOBAL_INT;
+				msg.lat_int = pos_sp_triplet.current.lat * 1e7;
+				msg.lon_int = pos_sp_triplet.current.lon * 1e7;
+				msg.alt = pos_sp_triplet.current.alt;
+
+				vehicle_local_position_setpoint_s lpos_sp;
+
+				if (_lpos_sp_sub->update(&lpos_sp)) {
+					// velocity
+					msg.vx = lpos_sp.vx;
+					msg.vy = lpos_sp.vy;
+					msg.vz = lpos_sp.vz;
+
+					// acceleration
+					msg.afx = lpos_sp.acc_x;
+					msg.afy = lpos_sp.acc_y;
+					msg.afz = lpos_sp.acc_z;
+
+					// yaw
+					msg.yaw = lpos_sp.yaw;
+					msg.yaw_rate = lpos_sp.yawspeed;
+				}
+
+				mavlink_msg_position_target_global_int_send_struct(_mavlink->get_channel(), &msg);
+
+				return true;
+			}
 		}
 
 		return false;
@@ -3046,6 +3064,123 @@ protected:
 			msg.buttons |= (manual.offboard_switch << (shift * 5));
 
 			mavlink_msg_manual_control_send_struct(_mavlink->get_channel(), &msg);
+
+			return true;
+		}
+
+		return false;
+	}
+};
+
+class MavlinkStreamTrajectory: public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamTrajectory::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "TRAJECTORY";
+	}
+
+	static uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_TRAJECTORY;
+	}
+
+	uint16_t get_id()
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamTrajectory(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return _traj_wp_avoidance_sub->is_published() ? (MAVLINK_MSG_ID_TRAJECTORY_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES)
+		       : 0;
+	}
+
+private:
+	MavlinkOrbSubscription *_traj_wp_avoidance_sub;
+	uint64_t _traj_wp_avoidance_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamTrajectory(MavlinkStreamTrajectory &);
+	MavlinkStreamTrajectory &operator = (const MavlinkStreamTrajectory &);
+
+protected:
+	explicit MavlinkStreamTrajectory(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_traj_wp_avoidance_sub(_mavlink->add_orb_subscription(ORB_ID(vehicle_trajectory_waypoint_desired))),
+		_traj_wp_avoidance_time(0)
+	{}
+
+	bool send(const hrt_abstime t)
+	{
+		struct vehicle_trajectory_waypoint_s traj_wp_avoidance_desired;
+
+		if (_traj_wp_avoidance_sub->update(&_traj_wp_avoidance_time, &traj_wp_avoidance_desired)) {
+			mavlink_trajectory_t msg = {};
+
+			msg.time_usec = traj_wp_avoidance_desired.timestamp;
+			msg.type = traj_wp_avoidance_desired.type;
+
+			for (int i = 0; i < 3; ++i) {
+				msg.point_1[i] = traj_wp_avoidance_desired.waypoints[0].position[i];
+				msg.point_1[3 + i] = traj_wp_avoidance_desired.waypoints[0].velocity[i];
+				msg.point_1[6 + i] = traj_wp_avoidance_desired.waypoints[0].acceleration[i];
+			}
+
+			msg.point_1[9] = traj_wp_avoidance_desired.waypoints[0].yaw;
+			msg.point_1[10] = traj_wp_avoidance_desired.waypoints[0].yaw_speed;
+			msg.point_valid[0] = traj_wp_avoidance_desired.waypoints[0].point_valid;
+
+			for (int i = 0; i < 3; ++i) {
+				msg.point_2[i] = traj_wp_avoidance_desired.waypoints[1].position[i];
+				msg.point_2[3 + i] = traj_wp_avoidance_desired.waypoints[1].velocity[i];
+				msg.point_2[6 + i] = traj_wp_avoidance_desired.waypoints[1].acceleration[i];
+			}
+
+			msg.point_2[9] = traj_wp_avoidance_desired.waypoints[1].yaw;
+			msg.point_2[10] = traj_wp_avoidance_desired.waypoints[1].yaw_speed;
+			msg.point_valid[1] = traj_wp_avoidance_desired.waypoints[1].point_valid;
+
+			for (int i = 0; i < 3; ++i) {
+				msg.point_3[i] = traj_wp_avoidance_desired.waypoints[2].position[i];
+				msg.point_3[3 + i] = traj_wp_avoidance_desired.waypoints[2].velocity[i];
+				msg.point_3[6 + i] = traj_wp_avoidance_desired.waypoints[2].acceleration[i];
+			}
+
+			msg.point_3[9] = traj_wp_avoidance_desired.waypoints[2].yaw;
+			msg.point_3[10] = traj_wp_avoidance_desired.waypoints[2].yaw_speed;
+			msg.point_valid[2] = traj_wp_avoidance_desired.waypoints[2].point_valid;
+
+			for (int i = 0; i < 3; ++i) {
+				msg.point_4[i] = traj_wp_avoidance_desired.waypoints[3].position[i];
+				msg.point_4[3 + i] = traj_wp_avoidance_desired.waypoints[3].velocity[i];
+				msg.point_4[6 + i] = traj_wp_avoidance_desired.waypoints[3].acceleration[i];
+			}
+
+			msg.point_4[9] = traj_wp_avoidance_desired.waypoints[3].yaw;
+			msg.point_4[10] = traj_wp_avoidance_desired.waypoints[3].yaw_speed;
+			msg.point_valid[3] = traj_wp_avoidance_desired.waypoints[3].point_valid;
+
+			for (int i = 0; i < 3; ++i) {
+				msg.point_5[i] = traj_wp_avoidance_desired.waypoints[4].position[i];
+				msg.point_5[3 + i] = traj_wp_avoidance_desired.waypoints[4].velocity[i];
+				msg.point_5[6 + i] = traj_wp_avoidance_desired.waypoints[4].acceleration[i];
+			}
+
+			msg.point_5[9] = traj_wp_avoidance_desired.waypoints[4].yaw;
+			msg.point_5[10] = traj_wp_avoidance_desired.waypoints[4].yaw_speed;
+			msg.point_valid[4] = traj_wp_avoidance_desired.waypoints[4].point_valid;
+
+			mavlink_msg_trajectory_send_struct(_mavlink->get_channel(), &msg);
 
 			return true;
 		}
@@ -3962,9 +4097,9 @@ protected:
 
 			mavlink_mount_orientation_t msg = {};
 
-			msg.roll = 180.0f / M_PI_F * mount_orientation.attitude_euler_angle[0];
-			msg.pitch = 180.0f / M_PI_F * mount_orientation.attitude_euler_angle[1];
-			msg.yaw = 180.0f / M_PI_F * mount_orientation.attitude_euler_angle[2];
+			msg.roll = math::degrees(mount_orientation.attitude_euler_angle[0]);
+			msg.pitch = math::degrees(mount_orientation.attitude_euler_angle[1]);
+			msg.yaw = math::degrees(mount_orientation.attitude_euler_angle[2]);
 
 			mavlink_msg_mount_orientation_send_struct(_mavlink->get_channel(), &msg);
 
@@ -4165,6 +4300,7 @@ static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamAttitudeTarget::new_instance, &MavlinkStreamAttitudeTarget::get_name_static, &MavlinkStreamAttitudeTarget::get_id_static),
 	StreamListItem(&MavlinkStreamRCChannels::new_instance, &MavlinkStreamRCChannels::get_name_static, &MavlinkStreamRCChannels::get_id_static),
 	StreamListItem(&MavlinkStreamManualControl::new_instance, &MavlinkStreamManualControl::get_name_static, &MavlinkStreamManualControl::get_id_static),
+	StreamListItem(&MavlinkStreamTrajectory::new_instance, &MavlinkStreamTrajectory::get_name_static, &MavlinkStreamTrajectory::get_id_static),
 	StreamListItem(&MavlinkStreamOpticalFlowRad::new_instance, &MavlinkStreamOpticalFlowRad::get_name_static, &MavlinkStreamOpticalFlowRad::get_id_static),
 	StreamListItem(&MavlinkStreamActuatorControlTarget<0>::new_instance, &MavlinkStreamActuatorControlTarget<0>::get_name_static, &MavlinkStreamActuatorControlTarget<0>::get_id_static),
 	StreamListItem(&MavlinkStreamActuatorControlTarget<1>::new_instance, &MavlinkStreamActuatorControlTarget<1>::get_name_static, &MavlinkStreamActuatorControlTarget<1>::get_id_static),

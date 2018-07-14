@@ -73,13 +73,11 @@
 #include <px4_shutdown.h>
 #include <px4_tasks.h>
 #include <px4_time.h>
-#include <systemlib/circuit_breaker.h>
+#include <circuit_breaker/circuit_breaker.h>
 #include <systemlib/err.h>
 #include <systemlib/hysteresis/hysteresis.h>
 #include <systemlib/mavlink_log.h>
 #include <parameters/param.h>
-#include <systemlib/rc_check.h>
-#include <systemlib/state_table.h>
 
 #include <cmath>
 #include <cfloat>
@@ -388,8 +386,8 @@ int commander_main(int argc, char *argv[])
 
 				struct vehicle_command_s cmd = {
 					.timestamp = hrt_absolute_time(),
-					.param5 = NAN,
-					.param6 = NAN,
+					.param5 = (double)NAN,
+					.param6 = (double)NAN,
 					/* minimum pitch */
 					.param1 = NAN,
 					.param2 = NAN,
@@ -419,8 +417,8 @@ int commander_main(int argc, char *argv[])
 
 		struct vehicle_command_s cmd = {
 			.timestamp = 0,
-			.param5 = NAN,
-			.param6 = NAN,
+			.param5 = (double)NAN,
+			.param6 = (double)NAN,
 			/* minimum pitch */
 			.param1 = NAN,
 			.param2 = NAN,
@@ -442,8 +440,8 @@ int commander_main(int argc, char *argv[])
 
 		struct vehicle_command_s cmd = {
 			.timestamp = 0,
-			.param5 = NAN,
-			.param6 = NAN,
+			.param5 = (double)NAN,
+			.param6 = (double)NAN,
 			/* transition to the other mode */
 			.param1 = (float)((status.is_rotary_wing) ? vtol_vehicle_status_s::VEHICLE_VTOL_STATE_FW : vtol_vehicle_status_s::VEHICLE_VTOL_STATE_MC),
 			.param2 = NAN,
@@ -513,8 +511,8 @@ int commander_main(int argc, char *argv[])
 
 		struct vehicle_command_s cmd = {
 			.timestamp = 0,
-			.param5 = 0.0f,
-			.param6 = 0.0f,
+			.param5 = 0.0,
+			.param6 = 0.0,
 			/* if the comparison matches for off (== 0) set 0.0f, 2.0f (on) else */
 			.param1 = strcmp(argv[2], "off") ? 2.0f : 0.0f, /* lockdown */
 			.param2 = 0.0f,
@@ -1288,6 +1286,7 @@ Commander::run()
 	memset(&armed, 0, sizeof(armed));
 	/* armed topic */
 	orb_advert_t armed_pub = orb_advertise(ORB_ID(actuator_armed), &armed);
+	hrt_abstime last_disarmed_timestamp = 0;
 
 	/* vehicle control mode topic */
 	memset(&control_mode, 0, sizeof(control_mode));
@@ -1307,8 +1306,8 @@ Commander::run()
 
 	/* Start monitoring loop */
 	unsigned counter = 0;
-	unsigned stick_off_counter = 0;
-	unsigned stick_on_counter = 0;
+	int stick_off_counter = 0;
+	int stick_on_counter = 0;
 
 	bool low_battery_voltage_actions_done = false;
 	bool critical_battery_voltage_actions_done = false;
@@ -2238,14 +2237,17 @@ Commander::run()
 			status.rc_signal_lost = false;
 
 			const bool in_armed_state = (status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+			const bool arm_switch_or_button_mapped = sp_man.arm_switch != manual_control_setpoint_s::SWITCH_POS_NONE;
 			const bool arm_button_pressed = arm_switch_is_button == 1
 							&& sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
 
 			/* DISARM
 			 * check if left stick is in lower left position or arm button is pushed or arm switch has transition from arm to disarm
 			 * and we are in MANUAL, Rattitude, or AUTO_READY mode or (ASSIST mode and landed)
-			 * do it only for rotary wings in manual mode or fixed wing if landed */
-			const bool stick_in_lower_left = sp_man.r < -STICK_ON_OFF_LIMIT && sp_man.z < 0.1f;
+			 * do it only for rotary wings in manual mode or fixed wing if landed.
+			 * Disable stick-disarming if arming switch or button is mapped */
+			const bool stick_in_lower_left = sp_man.r < -STICK_ON_OFF_LIMIT && sp_man.z < 0.1f
+					&& !arm_switch_or_button_mapped;
 			const bool arm_switch_to_disarm_transition =  arm_switch_is_button == 0 &&
 					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_ON &&
 					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF;
@@ -2269,19 +2271,25 @@ Commander::run()
 				}
 
 				stick_off_counter++;
-				/* do not reset the counter when holding the arm button longer than needed */
 
 			} else if (!(arm_switch_is_button == 1 && sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON)) {
+				/* do not reset the counter when holding the arm button longer than needed */
 				stick_off_counter = 0;
 			}
 
 			/* ARM
 			 * check if left stick is in lower right position or arm button is pushed or arm switch has transition from disarm to arm
-			 * and we're in MANUAL mode */
-			const bool stick_in_lower_right = (sp_man.r > STICK_ON_OFF_LIMIT && sp_man.z < 0.1f);
+			 * and we're in MANUAL mode.
+			 * Disable stick-arming if arming switch or button is mapped */
+			const bool stick_in_lower_right = sp_man.r > STICK_ON_OFF_LIMIT && sp_man.z < 0.1f
+					&& !arm_switch_or_button_mapped;
+			/* allow a grace period for re-arming: preflight checks don't need to pass during that time,
+			 * for example for accidential in-air disarming */
+			const bool in_arming_grace_period = last_disarmed_timestamp != 0 && hrt_elapsed_time(&last_disarmed_timestamp) < 5_s;
 			const bool arm_switch_to_arm_transition = arm_switch_is_button == 0 &&
 					_last_sp_man_arm_switch == manual_control_setpoint_s::SWITCH_POS_OFF &&
-					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON;
+					sp_man.arm_switch == manual_control_setpoint_s::SWITCH_POS_ON &&
+					(sp_man.z < 0.1f || in_arming_grace_period);
 
 			if (!in_armed_state &&
 			    status.rc_input_mode != vehicle_status_s::RC_IN_MODE_OFF &&
@@ -2308,7 +2316,7 @@ Commander::run()
 
 					} else if (status.arming_state == vehicle_status_s::ARMING_STATE_STANDBY) {
 						arming_ret = arming_state_transition(&status, battery, safety, vehicle_status_s::ARMING_STATE_ARMED, &armed,
-										     true /* fRunPreArmChecks */,
+										     !in_arming_grace_period /* fRunPreArmChecks */,
 										     &mavlink_log_pub, &status_flags, arm_requirements, hrt_elapsed_time(&commander_boot_timestamp));
 
 						if (arming_ret != TRANSITION_CHANGED) {
@@ -2588,6 +2596,7 @@ Commander::run()
 				++flight_uuid;
 				// no need for param notification: the only user is mavlink which reads the param upon request
 				param_set_no_notification(_param_flight_uuid, &flight_uuid);
+				last_disarmed_timestamp = hrt_absolute_time();
 			}
 		}
 
@@ -3067,7 +3076,7 @@ Commander::set_main_state_rc(const vehicle_status_s &status_local, bool *changed
 	/* we know something has changed - check if we are in mode slot operation */
 	if (sp_man.mode_slot != manual_control_setpoint_s::MODE_SLOT_NONE) {
 
-		if (sp_man.mode_slot >= sizeof(_flight_mode_slots) / sizeof(_flight_mode_slots[0])) {
+		if (sp_man.mode_slot >= (int)(sizeof(_flight_mode_slots) / sizeof(_flight_mode_slots[0]))) {
 			warnx("m slot overflow");
 			return TRANSITION_DENIED;
 		}
@@ -4059,7 +4068,9 @@ bool Commander::preflight_check(bool report)
 	bool success = Preflight::preflightCheck(&mavlink_log_pub, status, status_flags, checkGNSS, report, false,
 			hrt_elapsed_time(&commander_boot_timestamp));
 
-	status_flags.condition_system_sensors_initialized = success;
+	if (success) {
+		status_flags.condition_system_sensors_initialized = true;
+	}
 
 	return success;
 }
