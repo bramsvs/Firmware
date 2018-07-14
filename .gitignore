@@ -60,8 +60,6 @@ GTAGS
 .idea
 cmake-build-*/
 
-.vscode
-
 posix-configs/SITL/init/test/*_generated
 
 /airframes.md
