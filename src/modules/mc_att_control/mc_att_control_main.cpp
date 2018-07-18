@@ -750,7 +750,7 @@ MulticopterAttitudeControl::run()
 			// 	dt = 0.02f;
 			// }
 
-			if (dt_log_accumulator > 0.1) {
+			if (dt_log_accumulator > 0.1f) {
 				dbg.value = 1/dt;
 				orb_publish(ORB_ID(debug_key_value), pub_dbg, &dbg);
 				// PX4_INFO("ATT_DT: %f", dbg.value);
