@@ -7,9 +7,9 @@
  *
  * Code generation for model "codegen_test".
  *
- * Model version              : 1.5
+ * Model version              : 1.6
  * Simulink Coder version : 8.14 (R2018a) 06-Feb-2018
- * C++ source code generated on : Fri Jul 20 10:15:31 2018
+ * C++ source code generated on : Fri Jul 20 17:33:01 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -21,12 +21,6 @@
 #ifndef MULTIWORD_TYPES_H
 #define MULTIWORD_TYPES_H
 #include "rtwtypes.h"
-
-/*
- * Definitions supporting external data access
- */
-typedef int32_T chunk_T;
-typedef uint32_T uchunk_T;
 
 /*
  * MultiWord supporting definitions

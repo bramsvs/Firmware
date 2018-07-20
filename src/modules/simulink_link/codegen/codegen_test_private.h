@@ -7,9 +7,9 @@
  *
  * Code generation for model "codegen_test".
  *
- * Model version              : 1.5
+ * Model version              : 1.6
  * Simulink Coder version : 8.14 (R2018a) 06-Feb-2018
- * C++ source code generated on : Fri Jul 20 10:15:31 2018
+ * C++ source code generated on : Fri Jul 20 17:33:01 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -21,7 +21,6 @@
 #ifndef RTW_HEADER_codegen_test_private_h_
 #define RTW_HEADER_codegen_test_private_h_
 #include "rtwtypes.h"
-#include "builtin_typeid_types.h"
 #include "multiword_types.h"
 
 /* Private macros used by the generated code to access rtModel */
@@ -33,15 +32,11 @@
 # define rtmIsMinorTimeStep(rtm)       (((rtm)->Timing.simTimeStep) == MINOR_TIME_STEP)
 #endif
 
-#ifndef rtmSetTFinal
-# define rtmSetTFinal(rtm, val)        ((rtm)->Timing.tFinal = (val))
-#endif
-
 #ifndef rtmSetTPtr
 # define rtmSetTPtr(rtm, val)          ((rtm)->Timing.t = (val))
 #endif
 
 /* private model entry point functions */
-extern void codegen_test_derivatives(void);
+extern void codegen_test_derivatives();
 
 #endif                                 /* RTW_HEADER_codegen_test_private_h_ */

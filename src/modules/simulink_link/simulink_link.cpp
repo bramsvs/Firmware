@@ -49,6 +49,8 @@
 
 using namespace matrix;
 
+codegen_testModelClass codegen;
+
 
 // // start primary application thread
 // if (!strcmp(argv[1], "start")) {
@@ -97,8 +99,8 @@ SimulinkLink::SimulinkLink() :
 	{initial_update_rate_hz, 50.f},
 	{initial_update_rate_hz, 50.f}} // will be initialized correctly when params are loaded
 {
-
-	codegen_test_initialize();
+	codegen.initialize(); 
+	// codegen_test_initialize();
 
 
 	for (uint8_t i = 0; i < MAX_GYRO_COUNT; i++) {
@@ -378,22 +380,27 @@ SimulinkLink::vehicle_land_detected_poll()
 
 }
 
-ExtU_codegen_test_T extU_codegen_test_T;
-ExtY_codegen_test_T extY_codegen_test_T;
+// ExtU_codegen_test_T extU_codegen_test_T;
+// ExtY_codegen_test_T extY_codegen_test_T;
+
+// real_T reference;
+// real_T value;
 
 void
 SimulinkLink::run()
 {
 	PX4_INFO("Starting..");
 
-	extU_codegen_test_T.reference = (double)1.0;
-	extU_codegen_test_T.Input1 = (double)2.0;
+	// extU_codegen_test_T.reference = (double)1.0;
+	// extU_codegen_test_T.Input1 = (double)2.0;
 
+	
+	// codegen.initialize();
 	// codegen_test_initialize();
-	codegen_test_step();
+	// codegen_test_step();
 	// codegen_test_terminate
 
-	PX4_INFO("velx:\t%8.4f", extY_codegen_test_T.Output);
+	// PX4_INFO("velx:\t%8.4f", extY_codegen_test_T.Output);
 
 	int step_size = 4; // sample time [ms]
 
@@ -454,13 +461,15 @@ SimulinkLink::run()
 				att.q[1] = raw.accelerometer_m_s2[1];
 				att.q[2] = raw.accelerometer_m_s2[2];
 
-				extU_codegen_test_T.reference = 0;
-				extU_codegen_test_T.Input1 = 2;
-			
-				codegen_test_step();
+
+				codegen.codegen_test_U.reference = 1.0;
+				codegen.codegen_test_U.Input1 = 2.0;
+
+				codegen.step();
+				// codegen_test_step();
 				// codegen_test_terminate
 			
-				PX4_INFO("velx:\t%8.4f", extY_codegen_test_T.Output);
+				PX4_INFO("velx:\t%8.4f", codegen.codegen_test_Y.Output);
 
 				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
 			}

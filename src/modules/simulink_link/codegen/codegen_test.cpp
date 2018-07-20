@@ -7,9 +7,9 @@
  *
  * Code generation for model "codegen_test".
  *
- * Model version              : 1.5
+ * Model version              : 1.6
  * Simulink Coder version : 8.14 (R2018a) 06-Feb-2018
- * C++ source code generated on : Fri Jul 20 10:15:31 2018
+ * C++ source code generated on : Fri Jul 20 17:33:01 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -21,27 +21,11 @@
 #include "codegen_test.h"
 #include "codegen_test_private.h"
 
-/* Block signals (default storage) */
-B_codegen_test_T codegen_test_B;
-
-/* Continuous states */
-X_codegen_test_T codegen_test_X;
-
-/* External inputs (root inport signals with default storage) */
-ExtU_codegen_test_T codegen_test_U;
-
-/* External outputs (root outports fed by signals with default storage) */
-ExtY_codegen_test_T codegen_test_Y;
-
-/* Real-time model */
-RT_MODEL_codegen_test_T codegen_test_M_;
-RT_MODEL_codegen_test_T *const codegen_test_M = &codegen_test_M_;
-
 /*
  * This function updates continuous states using the ODE3 fixed-step
  * solver algorithm
  */
-static void rt_ertODEUpdateContinuousStates(RTWSolverInfo *si )
+void codegen_testModelClass::rt_ertODEUpdateContinuousStates(RTWSolverInfo *si )
 {
   /* Solver Matrices */
   static const real_T rt_ODE3_A[3] = {
@@ -87,7 +71,7 @@ static void rt_ertODEUpdateContinuousStates(RTWSolverInfo *si )
 
   rtsiSetT(si, t + h*rt_ODE3_A[0]);
   rtsiSetdX(si, f1);
-  codegen_test_step();
+  this->step();
   codegen_test_derivatives();
 
   /* f(:,3) = feval(odefile, t + hA(2), y + f*hB(:,2), args(:)(*)); */
@@ -101,7 +85,7 @@ static void rt_ertODEUpdateContinuousStates(RTWSolverInfo *si )
 
   rtsiSetT(si, t + h*rt_ODE3_A[1]);
   rtsiSetdX(si, f2);
-  codegen_test_step();
+  this->step();
   codegen_test_derivatives();
 
   /* tnew = t + hA(3);
@@ -119,18 +103,17 @@ static void rt_ertODEUpdateContinuousStates(RTWSolverInfo *si )
 }
 
 /* Model step function */
-void codegen_test_step(void)
+void codegen_testModelClass::step()
 {
-  if (rtmIsMajorTimeStep(codegen_test_M)) {
+  if (rtmIsMajorTimeStep((&codegen_test_M))) {
     /* set solver stop time */
-    rtsiSetSolverStopTime(&codegen_test_M->solverInfo,
-                          ((codegen_test_M->Timing.clockTick0+1)*
-      codegen_test_M->Timing.stepSize0));
+    rtsiSetSolverStopTime(&(&codegen_test_M)->solverInfo,(((&codegen_test_M)
+      ->Timing.clockTick0+1)*(&codegen_test_M)->Timing.stepSize0));
   }                                    /* end MajorTimeStep */
 
   /* Update absolute time of base rate at minor time step */
-  if (rtmIsMinorTimeStep(codegen_test_M)) {
-    codegen_test_M->Timing.t[0] = rtsiGetT(&codegen_test_M->solverInfo);
+  if (rtmIsMinorTimeStep((&codegen_test_M))) {
+    (&codegen_test_M)->Timing.t[0] = rtsiGetT(&(&codegen_test_M)->solverInfo);
   }
 
   /* Sum: '<Root>/Sum' incorporates:
@@ -171,22 +154,8 @@ void codegen_test_step(void)
   /* Gain: '<S2>/Integral Gain' */
   codegen_test_B.IntegralGain = codegen_test_P.PIDController_I *
     codegen_test_B.error;
-  if (rtmIsMajorTimeStep(codegen_test_M)) {
-    /* Matfile logging */
-    rt_UpdateTXYLogVars(codegen_test_M->rtwLogInfo, (codegen_test_M->Timing.t));
-  }                                    /* end MajorTimeStep */
-
-  if (rtmIsMajorTimeStep(codegen_test_M)) {
-    /* signal main to stop simulation */
-    {                                  /* Sample time: [0.0s, 0.0s] */
-      if ((rtmGetTFinal(codegen_test_M)!=-1) &&
-          !((rtmGetTFinal(codegen_test_M)-codegen_test_M->Timing.t[0]) >
-            codegen_test_M->Timing.t[0] * (DBL_EPSILON))) {
-        rtmSetErrorStatus(codegen_test_M, "Simulation finished");
-      }
-    }
-
-    rt_ertODEUpdateContinuousStates(&codegen_test_M->solverInfo);
+  if (rtmIsMajorTimeStep((&codegen_test_M))) {
+    rt_ertODEUpdateContinuousStates(&(&codegen_test_M)->solverInfo);
 
     /* Update absolute time for base rate */
     /* The "clockTick0" counts the number of times the code of this task has
@@ -194,17 +163,17 @@ void codegen_test_step(void)
      * and "Timing.stepSize0". Size of "clockTick0" ensures timer will not
      * overflow during the application lifespan selected.
      */
-    ++codegen_test_M->Timing.clockTick0;
-    codegen_test_M->Timing.t[0] = rtsiGetSolverStopTime
-      (&codegen_test_M->solverInfo);
+    ++(&codegen_test_M)->Timing.clockTick0;
+    (&codegen_test_M)->Timing.t[0] = rtsiGetSolverStopTime(&(&codegen_test_M)
+      ->solverInfo);
   }                                    /* end MajorTimeStep */
 }
 
 /* Derivatives for root system: '<Root>' */
-void codegen_test_derivatives(void)
+void codegen_testModelClass::codegen_test_derivatives()
 {
   XDot_codegen_test_T *_rtXdot;
-  _rtXdot = ((XDot_codegen_test_T *) codegen_test_M->derivs);
+  _rtXdot = ((XDot_codegen_test_T *) (&codegen_test_M)->derivs);
 
   /* Derivatives for Integrator: '<S2>/Integrator' */
   _rtXdot->Integrator_CSTATE = codegen_test_B.IntegralGain;
@@ -214,75 +183,48 @@ void codegen_test_derivatives(void)
 }
 
 /* Model initialize function */
-void codegen_test_initialize(void)
+void codegen_testModelClass::initialize()
 {
   /* Registration code */
 
-  /* initialize non-finites */
-  rt_InitInfAndNaN(sizeof(real_T));
-
   /* initialize real-time model */
-  (void) memset((void *)codegen_test_M, 0,
+  (void) memset((void *)(&codegen_test_M), 0,
                 sizeof(RT_MODEL_codegen_test_T));
 
   {
     /* Setup solver object */
-    rtsiSetSimTimeStepPtr(&codegen_test_M->solverInfo,
-                          &codegen_test_M->Timing.simTimeStep);
-    rtsiSetTPtr(&codegen_test_M->solverInfo, &rtmGetTPtr(codegen_test_M));
-    rtsiSetStepSizePtr(&codegen_test_M->solverInfo,
-                       &codegen_test_M->Timing.stepSize0);
-    rtsiSetdXPtr(&codegen_test_M->solverInfo, &codegen_test_M->derivs);
-    rtsiSetContStatesPtr(&codegen_test_M->solverInfo, (real_T **)
-                         &codegen_test_M->contStates);
-    rtsiSetNumContStatesPtr(&codegen_test_M->solverInfo,
-      &codegen_test_M->Sizes.numContStates);
-    rtsiSetNumPeriodicContStatesPtr(&codegen_test_M->solverInfo,
-      &codegen_test_M->Sizes.numPeriodicContStates);
-    rtsiSetPeriodicContStateIndicesPtr(&codegen_test_M->solverInfo,
-      &codegen_test_M->periodicContStateIndices);
-    rtsiSetPeriodicContStateRangesPtr(&codegen_test_M->solverInfo,
-      &codegen_test_M->periodicContStateRanges);
-    rtsiSetErrorStatusPtr(&codegen_test_M->solverInfo, (&rtmGetErrorStatus
-      (codegen_test_M)));
-    rtsiSetRTModelPtr(&codegen_test_M->solverInfo, codegen_test_M);
+    rtsiSetSimTimeStepPtr(&(&codegen_test_M)->solverInfo, &(&codegen_test_M)
+                          ->Timing.simTimeStep);
+    rtsiSetTPtr(&(&codegen_test_M)->solverInfo, &rtmGetTPtr((&codegen_test_M)));
+    rtsiSetStepSizePtr(&(&codegen_test_M)->solverInfo, &(&codegen_test_M)
+                       ->Timing.stepSize0);
+    rtsiSetdXPtr(&(&codegen_test_M)->solverInfo, &(&codegen_test_M)->derivs);
+    rtsiSetContStatesPtr(&(&codegen_test_M)->solverInfo, (real_T **)
+                         &(&codegen_test_M)->contStates);
+    rtsiSetNumContStatesPtr(&(&codegen_test_M)->solverInfo, &(&codegen_test_M)
+      ->Sizes.numContStates);
+    rtsiSetNumPeriodicContStatesPtr(&(&codegen_test_M)->solverInfo,
+      &(&codegen_test_M)->Sizes.numPeriodicContStates);
+    rtsiSetPeriodicContStateIndicesPtr(&(&codegen_test_M)->solverInfo,
+      &(&codegen_test_M)->periodicContStateIndices);
+    rtsiSetPeriodicContStateRangesPtr(&(&codegen_test_M)->solverInfo,
+      &(&codegen_test_M)->periodicContStateRanges);
+    rtsiSetErrorStatusPtr(&(&codegen_test_M)->solverInfo, (&rtmGetErrorStatus
+      ((&codegen_test_M))));
+    rtsiSetRTModelPtr(&(&codegen_test_M)->solverInfo, (&codegen_test_M));
   }
 
-  rtsiSetSimTimeStep(&codegen_test_M->solverInfo, MAJOR_TIME_STEP);
-  codegen_test_M->intgData.y = codegen_test_M->odeY;
-  codegen_test_M->intgData.f[0] = codegen_test_M->odeF[0];
-  codegen_test_M->intgData.f[1] = codegen_test_M->odeF[1];
-  codegen_test_M->intgData.f[2] = codegen_test_M->odeF[2];
-  codegen_test_M->contStates = ((X_codegen_test_T *) &codegen_test_X);
-  rtsiSetSolverData(&codegen_test_M->solverInfo, (void *)
-                    &codegen_test_M->intgData);
-  rtsiSetSolverName(&codegen_test_M->solverInfo,"ode3");
-  rtmSetTPtr(codegen_test_M, &codegen_test_M->Timing.tArray[0]);
-  rtmSetTFinal(codegen_test_M, 2.0);
-  codegen_test_M->Timing.stepSize0 = 0.04;
-
-  /* Setup for data logging */
-  {
-    static RTWLogInfo rt_DataLoggingInfo;
-    rt_DataLoggingInfo.loggingInterval = NULL;
-    codegen_test_M->rtwLogInfo = &rt_DataLoggingInfo;
-  }
-
-  /* Setup for data logging */
-  {
-    rtliSetLogXSignalInfo(codegen_test_M->rtwLogInfo, (NULL));
-    rtliSetLogXSignalPtrs(codegen_test_M->rtwLogInfo, (NULL));
-    rtliSetLogT(codegen_test_M->rtwLogInfo, "");
-    rtliSetLogX(codegen_test_M->rtwLogInfo, "");
-    rtliSetLogXFinal(codegen_test_M->rtwLogInfo, "");
-    rtliSetLogVarNameModifier(codegen_test_M->rtwLogInfo, "rt_");
-    rtliSetLogFormat(codegen_test_M->rtwLogInfo, 4);
-    rtliSetLogMaxRows(codegen_test_M->rtwLogInfo, 1000);
-    rtliSetLogDecimation(codegen_test_M->rtwLogInfo, 1);
-    rtliSetLogY(codegen_test_M->rtwLogInfo, "");
-    rtliSetLogYSignalInfo(codegen_test_M->rtwLogInfo, (NULL));
-    rtliSetLogYSignalPtrs(codegen_test_M->rtwLogInfo, (NULL));
-  }
+  rtsiSetSimTimeStep(&(&codegen_test_M)->solverInfo, MAJOR_TIME_STEP);
+  (&codegen_test_M)->intgData.y = (&codegen_test_M)->odeY;
+  (&codegen_test_M)->intgData.f[0] = (&codegen_test_M)->odeF[0];
+  (&codegen_test_M)->intgData.f[1] = (&codegen_test_M)->odeF[1];
+  (&codegen_test_M)->intgData.f[2] = (&codegen_test_M)->odeF[2];
+  getRTM()->contStates = ((X_codegen_test_T *) &codegen_test_X);
+  rtsiSetSolverData(&(&codegen_test_M)->solverInfo, (void *)&(&codegen_test_M)
+                    ->intgData);
+  rtsiSetSolverName(&(&codegen_test_M)->solverInfo,"ode3");
+  rtmSetTPtr(getRTM(), &(&codegen_test_M)->Timing.tArray[0]);
+  (&codegen_test_M)->Timing.stepSize0 = 0.04;
 
   /* block I/O */
   (void) memset(((void *) &codegen_test_B), 0,
@@ -300,11 +242,6 @@ void codegen_test_initialize(void)
   /* external outputs */
   codegen_test_Y.Output = 0.0;
 
-  /* Matfile logging */
-  rt_StartDataLoggingWithStartTime(codegen_test_M->rtwLogInfo, 0.0, rtmGetTFinal
-    (codegen_test_M), codegen_test_M->Timing.stepSize0, (&rtmGetErrorStatus
-    (codegen_test_M)));
-
   /* InitializeConditions for Integrator: '<S2>/Integrator' */
   codegen_test_X.Integrator_CSTATE = codegen_test_P.Integrator_IC;
 
@@ -313,7 +250,58 @@ void codegen_test_initialize(void)
 }
 
 /* Model terminate function */
-void codegen_test_terminate(void)
+void codegen_testModelClass::terminate()
 {
   /* (no terminate code required) */
+}
+
+/* Constructor */
+codegen_testModelClass::codegen_testModelClass()
+{
+  static const P_codegen_test_T codegen_test_P_temp = {
+    /* Mask Parameter: PIDController_D
+     * Referenced by: '<S2>/Derivative Gain'
+     */
+    0.02,
+
+    /* Mask Parameter: PIDController_I
+     * Referenced by: '<S2>/Integral Gain'
+     */
+    22.0,
+
+    /* Mask Parameter: PIDController_N
+     * Referenced by: '<S2>/Filter Coefficient'
+     */
+    20.0,
+
+    /* Mask Parameter: PIDController_P
+     * Referenced by: '<S2>/Proportional Gain'
+     */
+    1.2,
+
+    /* Expression: InitialConditionForIntegrator
+     * Referenced by: '<S2>/Integrator'
+     */
+    0.0,
+
+    /* Expression: InitialConditionForFilter
+     * Referenced by: '<S2>/Filter'
+     */
+    0.0
+  };                                   /* Modifiable parameters */
+
+  /* Initialize tunable parameters */
+  codegen_test_P = codegen_test_P_temp;
+}
+
+/* Destructor */
+codegen_testModelClass::~codegen_testModelClass()
+{
+  /* Currently there is no destructor body generated.*/
+}
+
+/* Real-Time Model get method */
+RT_MODEL_codegen_test_T * codegen_testModelClass::getRTM()
+{
+  return (&codegen_test_M);
 }

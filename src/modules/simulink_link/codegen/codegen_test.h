@@ -7,9 +7,9 @@
  *
  * Code generation for model "codegen_test".
  *
- * Model version              : 1.5
+ * Model version              : 1.6
  * Simulink Coder version : 8.14 (R2018a) 06-Feb-2018
- * C++ source code generated on : Fri Jul 20 10:15:31 2018
+ * C++ source code generated on : Fri Jul 20 17:33:01 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -21,21 +21,17 @@
 #ifndef RTW_HEADER_codegen_test_h_
 #define RTW_HEADER_codegen_test_h_
 #include <string.h>
-#include <float.h>
-#include <stddef.h>
 #ifndef codegen_test_COMMON_INCLUDES_
 # define codegen_test_COMMON_INCLUDES_
 #include "rtwtypes.h"
 #include "rtw_continuous.h"
 #include "rtw_solver.h"
-#include "rt_logging.h"
 #endif                                 /* codegen_test_COMMON_INCLUDES_ */
 
 #include "codegen_test_types.h"
 
 /* Shared type includes */
 #include "multiword_types.h"
-#include "rt_nonfinite.h"
 
 /* Macros for accessing real-time model data structure */
 #ifndef rtmGetContStateDisabled
@@ -68,10 +64,6 @@
 
 #ifndef rtmSetDerivCacheNeedsReset
 # define rtmSetDerivCacheNeedsReset(rtm, val) ((rtm)->derivCacheNeedsReset = (val))
-#endif
-
-#ifndef rtmGetFinalTime
-# define rtmGetFinalTime(rtm)          ((rtm)->Timing.tFinal)
 #endif
 
 #ifndef rtmGetIntgData
@@ -114,10 +106,6 @@
 # define rtmSetPeriodicContStateRanges(rtm, val) ((rtm)->periodicContStateRanges = (val))
 #endif
 
-#ifndef rtmGetRTWLogInfo
-# define rtmGetRTWLogInfo(rtm)         ((rtm)->rtwLogInfo)
-#endif
-
 #ifndef rtmGetZCCacheNeedsReset
 # define rtmGetZCCacheNeedsReset(rtm)  ((rtm)->zCCacheNeedsReset)
 #endif
@@ -156,10 +144,6 @@
 
 #ifndef rtmGetT
 # define rtmGetT(rtm)                  (rtmGetTPtr((rtm))[0])
-#endif
-
-#ifndef rtmGetTFinal
-# define rtmGetTFinal(rtm)             ((rtm)->Timing.tFinal)
 #endif
 
 #ifndef rtmGetTPtr
@@ -244,7 +228,6 @@ struct P_codegen_test_T_ {
 /* Real-time Model Data Structure */
 struct tag_RTM_codegen_test_T {
   const char_T *errorStatus;
-  RTWLogInfo *rtwLogInfo;
   RTWSolverInfo solverInfo;
   X_codegen_test_T *contStates;
   int_T *periodicContStateIndices;
@@ -278,7 +261,6 @@ struct tag_RTM_codegen_test_T {
   struct {
     uint32_T clockTick0;
     time_T stepSize0;
-    time_T tFinal;
     SimTimeStep simTimeStep;
     boolean_T stopRequestedFlag;
     time_T *t;
@@ -286,72 +268,52 @@ struct tag_RTM_codegen_test_T {
   } Timing;
 };
 
-/* Block parameters (default storage) */
-#ifdef __cplusplus
+/* Class declaration for model codegen_test */
+class codegen_testModelClass {
+  /* public data and function members */
+ public:
+  /* External inputs */
+  ExtU_codegen_test_T codegen_test_U;
 
-extern "C" {
+  /* External outputs */
+  ExtY_codegen_test_T codegen_test_Y;
 
-#endif
+  /* model initialize function */
+  void initialize();
 
-  extern P_codegen_test_T codegen_test_P;
+  /* model step function */
+  void step();
 
-#ifdef __cplusplus
+  /* model terminate function */
+  void terminate();
 
-}
-#endif
+  /* Constructor */
+  codegen_testModelClass();
 
-/* Block signals (default storage) */
-extern B_codegen_test_T codegen_test_B;
+  /* Destructor */
+  ~codegen_testModelClass();
 
-/* Continuous states (default storage) */
-extern X_codegen_test_T codegen_test_X;
+  /* Real-Time Model get method */
+  RT_MODEL_codegen_test_T * getRTM();
 
-#ifdef __cplusplus
+  /* private data and function members */
+ private:
+  /* Tunable parameters */
+  P_codegen_test_T codegen_test_P;
 
-extern "C" {
+  /* Block signals */
+  B_codegen_test_T codegen_test_B;
+  X_codegen_test_T codegen_test_X;     /* Block continuous states */
 
-#endif
+  /* Real-Time Model */
+  RT_MODEL_codegen_test_T codegen_test_M;
 
-  /* External inputs (root inport signals with default storage) */
-  extern ExtU_codegen_test_T codegen_test_U;
+  /* Continuous states update member function*/
+  void rt_ertODEUpdateContinuousStates(RTWSolverInfo *si );
 
-  /* External outputs (root outports fed by signals with default storage) */
-  extern ExtY_codegen_test_T codegen_test_Y;
-
-#ifdef __cplusplus
-
-}
-#endif
-
-#ifdef __cplusplus
-
-extern "C" {
-
-#endif
-
-  /* Model entry point functions */
-  extern void codegen_test_initialize(void);
-  extern void codegen_test_step(void);
-  extern void codegen_test_terminate(void);
-
-#ifdef __cplusplus
-
-}
-#endif
-
-/* Real-time Model object */
-#ifdef __cplusplus
-
-extern "C" {
-
-#endif
-
-  extern RT_MODEL_codegen_test_T *const codegen_test_M;
-
-#ifdef __cplusplus
-
-}
-#endif
+  /* Derivatives member function */
+  void codegen_test_derivatives();
+};
 
 /*-
  * The generated code includes comments that allow you to trace directly
