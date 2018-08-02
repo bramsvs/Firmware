@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file simulink_link.c
+ * @file simulink_wrapper.c
  * Simulink connector
  *
  * @author Bram Strack van Schijndel <bramsvs@gmail.com>
@@ -45,7 +45,7 @@
 #include <mathlib/math/Limits.hpp>
 #include <mathlib/math/Functions.hpp>
 
-#include "simulink_link.hpp"
+#include "simulink_wrapper.hpp"
 
 using namespace matrix;
 
@@ -70,7 +70,7 @@ codegen_testModelClass codegen;
 // exit(1);
 
 int 
-SimulinkLink::print_usage(const char *reason)
+SimulinkWrapper::print_usage(const char *reason)
 {
 	if (reason) {
 		PX4_WARN("%s\n", reason);
@@ -84,16 +84,16 @@ SimulinkLink::print_usage(const char *reason)
 
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("simulink_link", "controller");
+	PRINT_MODULE_USAGE_NAME("simulink_wrapper", "controller");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
 }
 
-SimulinkLink::SimulinkLink() :
+SimulinkWrapper::SimulinkWrapper() :
 	ModuleParams(nullptr),
-	_loop_perf(perf_alloc(PC_ELAPSED, "simulink_link")),
+	_loop_perf(perf_alloc(PC_ELAPSED, "simulink_wrapper")),
 	_lp_filters_d{
 	{initial_update_rate_hz, 50.f},
 	{initial_update_rate_hz, 50.f},
@@ -141,7 +141,7 @@ SimulinkLink::SimulinkLink() :
 
 
 void
-SimulinkLink::parameters_updated()
+SimulinkWrapper::parameters_updated()
 {
 	/* Store some of the parameters in a more convenient way & precompute often-used values */
 
@@ -209,7 +209,7 @@ SimulinkLink::parameters_updated()
 }
 
 void
-SimulinkLink::parameter_update_poll()
+SimulinkWrapper::parameter_update_poll()
 {
 	bool updated;
 
@@ -225,7 +225,7 @@ SimulinkLink::parameter_update_poll()
 }
 
 void
-SimulinkLink::vehicle_control_mode_poll()
+SimulinkWrapper::vehicle_control_mode_poll()
 {
 	bool updated;
 
@@ -238,7 +238,7 @@ SimulinkLink::vehicle_control_mode_poll()
 }
 
 void
-SimulinkLink::vehicle_manual_poll()
+SimulinkWrapper::vehicle_manual_poll()
 {
 	bool updated;
 
@@ -251,7 +251,7 @@ SimulinkLink::vehicle_manual_poll()
 }
 
 void
-SimulinkLink::vehicle_attitude_setpoint_poll()
+SimulinkWrapper::vehicle_attitude_setpoint_poll()
 {
 	/* check if there is a new setpoint */
 	bool updated;
@@ -263,7 +263,7 @@ SimulinkLink::vehicle_attitude_setpoint_poll()
 }
 
 void
-SimulinkLink::vehicle_rates_setpoint_poll()
+SimulinkWrapper::vehicle_rates_setpoint_poll()
 {
 	/* check if there is a new setpoint */
 	bool updated;
@@ -275,7 +275,7 @@ SimulinkLink::vehicle_rates_setpoint_poll()
 }
 
 void
-SimulinkLink::vehicle_status_poll()
+SimulinkWrapper::vehicle_status_poll()
 {
 	/* check if there is new status information */
 	bool vehicle_status_updated;
@@ -299,7 +299,7 @@ SimulinkLink::vehicle_status_poll()
 }
 
 void
-SimulinkLink::vehicle_motor_limits_poll()
+SimulinkWrapper::vehicle_motor_limits_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -314,7 +314,7 @@ SimulinkLink::vehicle_motor_limits_poll()
 }
 
 void
-SimulinkLink::battery_status_poll()
+SimulinkWrapper::battery_status_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -326,7 +326,7 @@ SimulinkLink::battery_status_poll()
 }
 
 void
-SimulinkLink::vehicle_attitude_poll()
+SimulinkWrapper::vehicle_attitude_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -338,7 +338,7 @@ SimulinkLink::vehicle_attitude_poll()
 }
 
 void
-SimulinkLink::sensor_correction_poll()
+SimulinkWrapper::sensor_correction_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -355,7 +355,7 @@ SimulinkLink::sensor_correction_poll()
 }
 
 void
-SimulinkLink::sensor_bias_poll()
+SimulinkWrapper::sensor_bias_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -368,7 +368,7 @@ SimulinkLink::sensor_bias_poll()
 }
 
 void
-SimulinkLink::vehicle_land_detected_poll()
+SimulinkWrapper::vehicle_land_detected_poll()
 {
 	/* check if there is a new message */
 	bool updated;
@@ -387,7 +387,7 @@ SimulinkLink::vehicle_land_detected_poll()
 // real_T value;
 
 void
-SimulinkLink::run()
+SimulinkWrapper::run()
 {
 	PX4_INFO("Starting..");
 
@@ -484,9 +484,9 @@ SimulinkLink::run()
 }
 
 int 
-SimulinkLink::task_spawn(int argc, char *argv[])
+SimulinkWrapper::task_spawn(int argc, char *argv[])
 {
-	_task_id = px4_task_spawn_cmd("simulink_link",
+	_task_id = px4_task_spawn_cmd("simulink_wrapper",
 					   SCHED_DEFAULT,
 					   SCHED_PRIORITY_ATTITUDE_CONTROL,
 					   1700,
@@ -501,19 +501,19 @@ SimulinkLink::task_spawn(int argc, char *argv[])
 	return 0;
 }
 
-SimulinkLink *SimulinkLink::instantiate(int argc, char *argv[])
+SimulinkWrapper *SimulinkWrapper::instantiate(int argc, char *argv[])
 {
-	return new SimulinkLink();
+	return new SimulinkWrapper();
 }
 
 int 
-SimulinkLink::custom_command(int argc, char *argv[])
+SimulinkWrapper::custom_command(int argc, char *argv[])
 {
 	return print_usage("unknown command");
 }
 
 int 
-simulink_link_main(int argc, char *argv[])
+simulink_wrapper_main(int argc, char *argv[])
 {
-	return SimulinkLink::main(argc, argv);
+	return SimulinkWrapper::main(argc, argv);
 }

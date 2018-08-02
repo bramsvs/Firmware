@@ -35,12 +35,12 @@
 add_subdirectory(codegen)
 
 px4_add_module(
-	MODULE simulink_link
-	MAIN simulink_link
+	MODULE simulink_wrapper
+	MAIN simulink_wrapper
 	STACK_MAIN 2000
 	COMPILE_FLAGS
 	SRCS
-		simulink_link.cpp
+		simulink_wrapper.cpp
 	DEPENDS
 		simulink_codegen
 	)

@@ -67,23 +67,23 @@
 /**
  * Multicopter attitude control app start / stop handling function
  */
-extern "C" __EXPORT int simulink_link_main(int argc, char *argv[]);
+extern "C" __EXPORT int simulink_wrapper_main(int argc, char *argv[]);
 
 #define MAX_GYRO_COUNT 3
 
 
-class SimulinkLink : public ModuleBase<SimulinkLink>, public ModuleParams
+class SimulinkWrapper : public ModuleBase<SimulinkWrapper>, public ModuleParams
 {
 public:
-	SimulinkLink();
+	SimulinkWrapper();
 
-	virtual ~SimulinkLink() = default;
+	virtual ~SimulinkWrapper() = default;
 
 	/** @see ModuleBase */
 	static int task_spawn(int argc, char *argv[]);
 
 	/** @see ModuleBase */
-	static SimulinkLink *instantiate(int argc, char *argv[]);
+	static SimulinkWrapper *instantiate(int argc, char *argv[]);
 
 	/** @see ModuleBase */
 	static int custom_command(int argc, char *argv[]);
