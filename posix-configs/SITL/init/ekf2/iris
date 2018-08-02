@@ -61,7 +61,7 @@ ekf2 start
 mc_pos_control start
 # mc_att_control start
 
-simulink_link start
+simulink_wrapper start
 
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_w.main.mix
 mavlink start -x -u 14556 -r 4000000

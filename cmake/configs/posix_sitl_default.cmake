@@ -69,7 +69,7 @@ set(config_module_list
 	modules/navigator
 	modules/replay
 	modules/simulator
-	modules/simulink_link
+	modules/simulink_wrapper
 	#modules/uavcan
 
 	#
