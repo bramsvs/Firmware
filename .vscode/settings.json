@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.m": "matlab",
+        "array": "cpp",
+        "*.tcc": "cpp",
+        "future": "cpp",
+        "istream": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp"
+    }
+}
