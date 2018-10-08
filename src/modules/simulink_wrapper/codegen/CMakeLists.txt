@@ -1,21 +1,24 @@
 
 # See libuavcan/CMakelists and matrix/Cmakelists for examples
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=float-equal -Wno-error=double-promotion")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=float-equal -Wno-error=double-promotion")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=float-equal -Wno-error=double-promotion -Wno-error=aggressive-loop-optimizations -Wno-error=array-bounds"
+)
 
-file(STRINGS defines.txt DEFINES)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=float-equal -Wno-error=double-promotion -Wno-error=aggressive-loop-optimizations -Wno-error=array-bounds"
+)
+
+# file(STRINGS defines.txt DEFINES)
 
 add_definitions(
-    -DMODEL=codegen_test
-    -DNUMST=1
-    -DNCSTATES=2
+    -DMODEL=INDI_allocator
+    -DNUMST=2
+    -DNCSTATES=27
     -DHAVESTDIO
     -DRT
     -DUSE_RTMODEL
     -DUNIX
     -DCLASSIC_INTERFACE=0
     -DALLOCATIONFCN=0
-    -DTID01EQ=0
+    -DTID01EQ=1
     -DMAT_FILE=0
     -DONESTEPFCN=1
     -DTERMFCN=1

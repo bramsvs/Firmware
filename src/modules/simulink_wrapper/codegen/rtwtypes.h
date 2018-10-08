@@ -5,16 +5,16 @@
  * course requirements at degree granting institutions only.  Not for
  * government, commercial, or other organizational use.
  *
- * Code generation for model "codegen_test".
+ * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.6
- * Simulink Coder version : 8.14 (R2018a) 06-Feb-2018
- * C++ source code generated on : Fri Jul 20 17:33:01 2018
+ * Model version              : 1.6830
+ * Simulink Coder version : 9.0 (R2018b) 24-May-2018
+ * C++ source code generated on : Tue Oct  2 03:48:13 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
- * Embedded hardware selection: Intel->x86-64 (Windows64)
- * Code generation objective: Debugging
+ * Embedded hardware selection: 32-bit Generic
+ * Code generation objectives: Unspecified
  * Validation result: Not run
  */
 

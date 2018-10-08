@@ -1,5 +1,5 @@
 /*
- *  rtmodel.h:
+ * INDI_allocator_data.cpp
  *
  * Academic License - for use in teaching, academic research, and meeting
  * course requirements at degree granting institutions only.  Not for
@@ -18,21 +18,24 @@
  * Validation result: Not run
  */
 
-#ifndef RTW_HEADER_rtmodel_h_
-#define RTW_HEADER_rtmodel_h_
-
-/*
- *  Includes the appropriate headers when we are using rtModel
- */
 #include "INDI_allocator.h"
-#define GRTINTERFACE                   0
+#include "INDI_allocator_private.h"
 
-/*
- * ROOT_IO_FORMAT: 0 (Individual arguments)
- * ROOT_IO_FORMAT: 1 (Structure reference)
- * ROOT_IO_FORMAT: 2 (Part of model data structure)
- */
-# define ROOT_IO_FORMAT                2
-#define MODEL_CLASSNAME                INDI_allocatorModelClass
-#define MODEL_STEPNAME                 step
-#endif                                 /* RTW_HEADER_rtmodel_h_ */
+/* Constant parameters (default storage) */
+const ConstP_INDI_allocator_T INDI_allocator_ConstP = {
+  /* Pooled Parameter (Mixed Expressions)
+   * Referenced by:
+   *   '<S1>/actuator_dynamics1'
+   *   '<S1>/lowpass_filter_actuator'
+   *   '<S1>/lowpass_filter_est '
+   *   '<S1>/lowpass_filter_est 1'
+   *   '<S1>/lowpass_filter_indi'
+   */
+  { 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+    1.0 },
+
+  /* Pooled Parameter (Mixed Expressions)
+   * Referenced by: '<S1>/lowpass_filter '
+   */
+  { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 }
+};

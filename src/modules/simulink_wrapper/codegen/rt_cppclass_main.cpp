@@ -1,5 +1,5 @@
 /* 
- * Copyright 2013 The MathWorks, Inc.
+ * Copyright 2013-2018 The MathWorks, Inc.
  *
  * File: rt_cppclass_main.cpp
  *
@@ -368,6 +368,8 @@ static int_T rt_TermModel(MODEL_CLASSNAME & mdl)
  */
 int_T main(int_T argc, const char *argv[])
 {
+    int_T ret;
+
     /* External mode */
     rtParseArgsForExtMode(argc, argv);
  
@@ -380,8 +382,6 @@ int_T main(int_T argc, const char *argv[])
     fflush(NULL);
 #endif
 
-    (void)printf("\n** starting the model **\n");
-
     /************************
      * Initialize the model *
      ************************/
@@ -393,6 +393,8 @@ int_T main(int_T argc, const char *argv[])
     rtExtModeWaitForStartPkt(rtmGetRTWExtModeInfo(MODEL_INSTANCE.getRTM()),
                              NUMST,
                              (boolean_T *)&rtmGetStopRequested(MODEL_INSTANCE.getRTM()));
+
+    (void)printf("\n** starting the model **\n");
 
     /***********************************************************************
      * Execute (step) the model.  You may also attach rtOneStep to an ISR, *
@@ -426,9 +428,11 @@ int_T main(int_T argc, const char *argv[])
 #endif
     rt_StopDataLogging(MATFILE,rtmGetRTWLogInfo(MODEL_INSTANCE.getRTM()));
 
+    ret = rt_TermModel(MODEL_INSTANCE);
+
     rtExtModeShutdown(NUMST);
 
-    return rt_TermModel(MODEL_INSTANCE);
+    return ret;
 }
 
 /* [EOF] rt_cppclass_main.cpp */

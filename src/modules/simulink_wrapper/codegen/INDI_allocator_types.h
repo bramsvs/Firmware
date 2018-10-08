@@ -1,5 +1,5 @@
 /*
- *  rtmodel.h:
+ * INDI_allocator_types.h
  *
  * Academic License - for use in teaching, academic research, and meeting
  * course requirements at degree granting institutions only.  Not for
@@ -18,21 +18,15 @@
  * Validation result: Not run
  */
 
-#ifndef RTW_HEADER_rtmodel_h_
-#define RTW_HEADER_rtmodel_h_
+#ifndef RTW_HEADER_INDI_allocator_types_h_
+#define RTW_HEADER_INDI_allocator_types_h_
+#include "rtwtypes.h"
+#include "multiword_types.h"
 
-/*
- *  Includes the appropriate headers when we are using rtModel
- */
-#include "INDI_allocator.h"
-#define GRTINTERFACE                   0
+/* Parameters (default storage) */
+typedef struct P_INDI_allocator_T_ P_INDI_allocator_T;
 
-/*
- * ROOT_IO_FORMAT: 0 (Individual arguments)
- * ROOT_IO_FORMAT: 1 (Structure reference)
- * ROOT_IO_FORMAT: 2 (Part of model data structure)
- */
-# define ROOT_IO_FORMAT                2
-#define MODEL_CLASSNAME                INDI_allocatorModelClass
-#define MODEL_STEPNAME                 step
-#endif                                 /* RTW_HEADER_rtmodel_h_ */
+/* Forward declaration for rtModel */
+typedef struct tag_RTM_INDI_allocator_T RT_MODEL_INDI_allocator_T;
+
+#endif                                 /* RTW_HEADER_INDI_allocator_types_h_ */

@@ -1,5 +1,5 @@
 /*
- *  rtmodel.h:
+ * rtGetInf.h
  *
  * Academic License - for use in teaching, academic research, and meeting
  * course requirements at degree granting institutions only.  Not for
@@ -18,21 +18,24 @@
  * Validation result: Not run
  */
 
-#ifndef RTW_HEADER_rtmodel_h_
-#define RTW_HEADER_rtmodel_h_
+#ifndef RTW_HEADER_rtGetInf_h_
+#define RTW_HEADER_rtGetInf_h_
+#include <stddef.h>
+#include "rtwtypes.h"
+#include "rt_nonfinite.h"
+#ifdef __cplusplus
 
-/*
- *  Includes the appropriate headers when we are using rtModel
- */
-#include "INDI_allocator.h"
-#define GRTINTERFACE                   0
+extern "C" {
 
-/*
- * ROOT_IO_FORMAT: 0 (Individual arguments)
- * ROOT_IO_FORMAT: 1 (Structure reference)
- * ROOT_IO_FORMAT: 2 (Part of model data structure)
- */
-# define ROOT_IO_FORMAT                2
-#define MODEL_CLASSNAME                INDI_allocatorModelClass
-#define MODEL_STEPNAME                 step
-#endif                                 /* RTW_HEADER_rtmodel_h_ */
+#endif
+
+  extern real_T rtGetInf(void);
+  extern real32_T rtGetInfF(void);
+  extern real_T rtGetMinusInf(void);
+  extern real32_T rtGetMinusInfF(void);
+
+#ifdef __cplusplus
+
+}                                      /* extern "C" */
+#endif
+#endif                                 /* RTW_HEADER_rtGetInf_h_ */
