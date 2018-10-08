@@ -63,6 +63,8 @@ set(config_module_list
 	# PX4 drivers
 	#
 	drivers/gps
+
+	modules/simulink_wrapper
 )
 
 set(config_df_driver_list

@@ -355,7 +355,7 @@ function(px4_add_common_flags)
 		-Wunknown-pragmas
 		-Wunused-variable
 
-		-Wno-implicit-fallthrough # set appropriate level and update
+		# -Wno-implicit-fallthrough # set appropriate level and update
 		-Wno-missing-include-dirs # TODO: fix and enable
 		-Wno-unused-parameter
 		)
@@ -448,7 +448,7 @@ function(px4_add_common_flags)
 		endif()
 
 		list(APPEND cxx_warnings
-			-Wno-format-truncation # TODO: fix
+			# -Wno-format-truncation # TODO: fix
 		)
 	endif()
 
