@@ -97,7 +97,6 @@ void MulticopterLandDetector::_initialize_topics()
 	_vehicleLocalPositionSetpointSub = orb_subscribe(ORB_ID(vehicle_local_position_setpoint));
 	_attitudeSub = orb_subscribe(ORB_ID(vehicle_attitude));
 	_actuatorsSub = orb_subscribe(ORB_ID(actuator_controls_0));
-	_parameterSub = orb_subscribe(ORB_ID(parameter_update));
 	_sensor_bias_sub = orb_subscribe(ORB_ID(sensor_bias));
 	_vehicle_control_mode_sub = orb_subscribe(ORB_ID(vehicle_control_mode));
 	_battery_sub = orb_subscribe(ORB_ID(battery_status));
@@ -324,7 +323,7 @@ bool MulticopterLandDetector::_has_minimal_thrust()
 	float sys_min_throttle = _params.minThrottle + (_params.hoverThrottle - _params.minThrottle) * _params.throttleRange;
 
 	// Determine the system min throttle based on flight mode
-	if (!_control_mode.flag_control_altitude_enabled) {
+	if (!_control_mode.flag_control_climb_rate_enabled) {
 		sys_min_throttle = (_params.minManThrottle + 0.01f);
 	}
 
