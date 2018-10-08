@@ -49,8 +49,8 @@
 #include <uORB/topics/rate_ctrl_status.h>
 #include <uORB/topics/sensor_bias.h>
 #include <uORB/topics/sensor_correction.h>
-
 #include <uORB/topics/sensor_combined.h>
+#include <uORB/topics/vehicle_local_position.h>
 
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/vehicle_attitude.h>
@@ -62,15 +62,12 @@
 
 #include <uORB/topics/debug_key_value.h>
 
-#include "./codegen/codegen_test.h"
-
 /**
  * Multicopter attitude control app start / stop handling function
  */
 extern "C" __EXPORT int simulink_wrapper_main(int argc, char *argv[]);
 
 #define MAX_GYRO_COUNT 3
-
 
 class SimulinkWrapper : public ModuleBase<SimulinkWrapper>, public ModuleParams
 {
@@ -95,6 +92,9 @@ public:
 	void run() override;
 
 private:
+	// int number_errors = 0;
+
+	float _sample_rate_max = 250.0f;
 
 	/**
 	 * initialize some vectors/matrices from parameters
@@ -116,6 +116,8 @@ private:
 	void		vehicle_motor_limits_poll();
 	void		vehicle_rates_setpoint_poll();
 	void		vehicle_status_poll();
+	void		sensor_combined_poll();
+	void		vehicle_local_position_poll();
 
 	/**
 	 * Attitude controller.
@@ -146,6 +148,8 @@ private:
 	int		_sensor_correction_sub{-1};	/**< sensor thermal correction subscription */
 	int		_sensor_bias_sub{-1};		/**< sensor in-run bias correction subscription */
 	int		_vehicle_land_detected_sub{-1};	/**< vehicle land detected subscription */
+	int		_sensor_combined_sub{-1};	/**< vehicle land detected subscription */
+	int		_vehicle_local_position_sub{-1};	/**< vehicle land detected subscription */
 
 	unsigned _gyro_count{1};
 	int _selected_gyro{0};
@@ -171,6 +175,9 @@ private:
 	struct sensor_correction_s		_sensor_correction {};	/**< sensor thermal corrections */
 	struct sensor_bias_s			_sensor_bias {};	/**< sensor in-run bias corrections */
 	struct vehicle_land_detected_s		_vehicle_land_detected {};
+	struct sensor_combined_s		_sensor_combined {};
+	struct vehicle_local_position_s		_vehicle_local_position {};
+
 
 	MultirotorMixer::saturation_status _saturation_status{};
 
@@ -214,11 +221,11 @@ private:
 
 		(ParamFloat<px4::params::MC_YAW_FF>) _yaw_ff,					/**< yaw control feed-forward */
 
-		(ParamFloat<px4::params::MC_DTERM_CUTOFF>) _d_term_cutoff_freq,			/**< Cutoff frequency for the D-term filter */
+		(ParamFloat<px4::params::MC_DTERM_CUTOFF>) _d_term_cutoff_freq,		/**< Cutoff frequency for the D-term filter */
 
-		(ParamFloat<px4::params::MC_TPA_BREAK_P>) _tpa_breakpoint_p,			/**< Throttle PID Attenuation breakpoint */
-		(ParamFloat<px4::params::MC_TPA_BREAK_I>) _tpa_breakpoint_i,			/**< Throttle PID Attenuation breakpoint */
-		(ParamFloat<px4::params::MC_TPA_BREAK_D>) _tpa_breakpoint_d,			/**< Throttle PID Attenuation breakpoint */
+		(ParamFloat<px4::params::MC_TPA_BREAK_P>) _tpa_breakpoint_p,		/**< Throttle PID Attenuation breakpoint */
+		(ParamFloat<px4::params::MC_TPA_BREAK_I>) _tpa_breakpoint_i,		/**< Throttle PID Attenuation breakpoint */
+		(ParamFloat<px4::params::MC_TPA_BREAK_D>) _tpa_breakpoint_d,		/**< Throttle PID Attenuation breakpoint */
 		(ParamFloat<px4::params::MC_TPA_RATE_P>) _tpa_rate_p,				/**< Throttle PID Attenuation slope */
 		(ParamFloat<px4::params::MC_TPA_RATE_I>) _tpa_rate_i,				/**< Throttle PID Attenuation slope */
 		(ParamFloat<px4::params::MC_TPA_RATE_D>) _tpa_rate_d,				/**< Throttle PID Attenuation slope */
@@ -233,8 +240,8 @@ private:
 		(ParamFloat<px4::params::MC_ACRO_Y_MAX>) _acro_yaw_max,
 		(ParamFloat<px4::params::MC_ACRO_EXPO>) _acro_expo_rp,				/**< expo stick curve shape (roll & pitch) */
 		(ParamFloat<px4::params::MC_ACRO_EXPO_Y>) _acro_expo_y,				/**< expo stick curve shape (yaw) */
-		(ParamFloat<px4::params::MC_ACRO_SUPEXPO>) _acro_superexpo_rp,			/**< superexpo stick curve shape (roll & pitch) */
-		(ParamFloat<px4::params::MC_ACRO_SUPEXPOY>) _acro_superexpo_y,			/**< superexpo stick curve shape (yaw) */
+		(ParamFloat<px4::params::MC_ACRO_SUPEXPO>) _acro_superexpo_rp,		/**< superexpo stick curve shape (roll & pitch) */
+		(ParamFloat<px4::params::MC_ACRO_SUPEXPOY>) _acro_superexpo_y,		/**< superexpo stick curve shape (yaw) */
 
 		(ParamFloat<px4::params::MC_RATT_TH>) _rattitude_thres,
 
