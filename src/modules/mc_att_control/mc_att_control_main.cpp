@@ -53,7 +53,6 @@
 #include <mathlib/math/Functions.hpp>
 
 #include <uORB/uORB.h>
-#include <uORB/topics/debug_key_value.h>
 
 #define TPA_RATE_LOWER_LIMIT 0.05f
 
@@ -63,8 +62,6 @@
 #define AXIS_COUNT 3
 
 using namespace matrix;
-
-struct debug_key_value_s dbg {};
 
 int number_errors = 0;
 
@@ -140,9 +137,8 @@ MulticopterAttitudeControl::MulticopterAttitudeControl() :
 
 	parameters_updated();
 
-
-	// /* advertise debug value */
-	dbg = { .value = 0.0f, .key = "att_dt" };
+	/* advertise named debug value */
+	strncpy(dbg.key, "att_dt", 10);
 	pub_dbg = orb_advertise(ORB_ID(debug_key_value), &dbg);
 	
 	PX4_INFO("DEBUG LOG INIT");

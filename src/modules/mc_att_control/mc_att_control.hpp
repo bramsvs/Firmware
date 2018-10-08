@@ -56,6 +56,7 @@
 #include <uORB/topics/vehicle_rates_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/topics/debug_key_value.h>
 
 /**
  * Multicopter attitude control app start / stop handling function
@@ -254,6 +255,7 @@ private:
 	matrix::Vector3f _auto_rate_max;	/**< attitude rate limits in auto modes */
 	matrix::Vector3f _acro_rate_max;	/**< max attitude rates in acro mode */
 
+	struct debug_key_value_s dbg;
 	orb_advert_t pub_dbg {nullptr};
 };
 
