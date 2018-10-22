@@ -52,7 +52,9 @@ fi
 #
 # Start Multicopter Attitude Controller.
 #
-mc_att_control start
+# mc_att_control start
+
+simulink_wrapper start
 
 #
 # Start Multicopter Position Controller.

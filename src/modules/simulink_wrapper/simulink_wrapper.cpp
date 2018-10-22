@@ -459,19 +459,6 @@ SimulinkWrapper::control_attitude(float dt)
 	/* calculate angular rates setpoint */
 	_rates_sp = eq.emult(attitude_gain);
 
-	/* Feed forward the yaw setpoint rate.
-	 * The yaw_feedforward_rate is a commanded rotation around the world z-axis,
-	 * but we need to apply it in the body frame (because _rates_sp is expressed in the body frame).
-	 * Therefore we infer the world z-axis (expressed in the body frame) by taking the last column of R.transposed (== q.inversed)
-	 * and multiply it by the yaw setpoint rate (yaw_sp_move_rate) and gain (_yaw_ff).
-	 * This yields a vector representing the commanded rotatation around the world z-axis expressed in the body frame
-	 * such that it can be added to the rates setpoint.
-	 */
-	Vector3f yaw_feedforward_rate = q.inversed().dcm_z();
-	yaw_feedforward_rate *= _v_att_sp.yaw_sp_move_rate * _yaw_ff.get();
-	_rates_sp += yaw_feedforward_rate;
-
-
 	/* limit rates */
 	for (int i = 0; i < 3; i++) {
 		if ((_v_control_mode.flag_control_velocity_enabled || _v_control_mode.flag_control_auto_enabled) &&
@@ -480,18 +467,6 @@ SimulinkWrapper::control_attitude(float dt)
 
 		} else {
 			_rates_sp(i) = math::constrain(_rates_sp(i), -_mc_rate_max(i), _mc_rate_max(i));
-		}
-	}
-
-	/* VTOL weather-vane mode, dampen yaw rate */
-	if (_vehicle_status.is_vtol && _v_att_sp.disable_mc_yaw_control) {
-		if (_v_control_mode.flag_control_velocity_enabled || _v_control_mode.flag_control_auto_enabled) {
-
-			const float wv_yaw_rate_max = _auto_rate_max(2) * _vtol_wv_yaw_rate_scale.get();
-			_rates_sp(2) = math::constrain(_rates_sp(2), -wv_yaw_rate_max, wv_yaw_rate_max);
-
-			// prevent integrator winding up in weathervane mode
-			_rates_int(2) = 0.0f;
 		}
 	}
 }
@@ -576,17 +551,19 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	codegen_input.pqr[1] = static_cast<double>(rates(1));
 	codegen_input.pqr[2] = static_cast<double>(rates(2));
 
-	codegen_input.u_pqr[0] = static_cast<double>(-200.f*rates_err(0));
-	codegen_input.u_pqr[1] = static_cast<double>(-200.f*rates_err(1));
-	codegen_input.u_pqr[2] = static_cast<double>(10.f*rates_err(2)); // inverse yaw!
+	codegen_input.u_pqr[0] = static_cast<double>(-60.f*rates_err(0)); // 80 80 50
+	codegen_input.u_pqr[1] = static_cast<double>(-60.f*rates_err(1));
+	codegen_input.u_pqr[2] = static_cast<double>(50.f*rates_err(2)); // inverse yaw!
 
 	codegen_input.thrust_cmd = static_cast<double>(_thrust_sp);
-	codegen_input.Az = static_cast<double>(_vehicle_local_position.az);
+	// codegen_input.Az = static_cast<double>(_vehicle_local_position.az);
 
 	codegen.INDI_allocator_U = codegen_input;
 
+
 	codegen.step();
 
+	// See mixer file pass.main.mix for exact control allocation.
 	_actuators.control[0] = codegen.INDI_allocator_Y.w_cmd_px4[0];
 	_actuators.control[1] = codegen.INDI_allocator_Y.w_cmd_px4[1];
 	_actuators.control[2] = codegen.INDI_allocator_Y.w_cmd_px4[2];
@@ -596,11 +573,6 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	// PX4_LOG("%f", static_cast<double>(_sensor_combined.accelerometer_m_s2[2]));
 	// PX4_LOG("%f", static_cast<double>(_thrust_sp));
 
-
-	// // _att_control_prev = _att_control;
-
-	// _rates_prev = rates;
-	// _rates_prev_filtered = rates_filtered;
 
 	// /* update integral only if we are not landed */
 	// if (!_vehicle_land_detected.maybe_landed && !_vehicle_land_detected.landed) {
@@ -671,7 +643,6 @@ SimulinkWrapper::control_attitude_rates(float dt)
 void
 SimulinkWrapper::run()
 {
-
 	/*
 	 * do subscriptions
 	 */
@@ -868,13 +839,6 @@ SimulinkWrapper::run()
 				_actuators.timestamp = hrt_absolute_time();
 				_actuators.timestamp_sample = _sensor_gyro.timestamp;
 
-				/* scale effort by battery status */
-				// if (_bat_scale_en.get() && _battery_status.scale > 0.0f) {
-				// 	for (int i = 0; i < 4; i++) {
-				// 		_actuators.control[i] *= _battery_status.scale;
-				// 	}
-				// }
-
 				if (!_actuators_0_circuit_breaker_enabled) {
 					if (_actuators_0_pub != nullptr) {
 
@@ -971,87 +935,6 @@ SimulinkWrapper::run()
 
 	codegen.terminate();
 }
-
-
-
-
-// 	/* advertise attitude topic */
-// 	struct vehicle_attitude_s att;
-// 	memset(&att, 0, sizeof(att));
-// 	orb_advert_t att_pub = orb_advertise(ORB_ID(vehicle_attitude), &att);
-
-// 	/* one could wait for multiple topics with this technique, just using one here */
-// 	px4_pollfd_struct_t fds[] = {
-// 		{ .fd = sensor_sub_fd,   .events = POLLIN },
-// 		/* there could be more file descriptors here, in the form like:
-// 		 * { .fd = other_sub_fd,   .events = POLLIN },
-// 		 */
-// 	};
-
-// 	int error_counter = 0;
-
-// 	for (int i = 0; i < 5; i++) {
-// 		/* wait for sensor update of 1 file descriptor for 1000 ms (1 second) */
-// 		int poll_ret = px4_poll(fds, 1, 1000);
-
-// 		/* handle the poll result */
-// 		if (poll_ret == 0) {
-// 			/* this means none of our providers is giving us data */
-// 			PX4_ERR("Got no data within a second");
-
-// 		} else if (poll_ret < 0) {
-// 			/* this is seriously bad - should be an emergency */
-// 			if (error_counter < 10 || error_counter % 50 == 0) {
-// 				/* use a counter to prevent flooding (and slowing us down) */
-// 				PX4_ERR("ERROR return value from poll(): %d", poll_ret);
-// 			}
-
-// 			error_counter++;
-
-// 		} else {
-
-// 			if (fds[0].revents & POLLIN) {
-// 				/* obtained data for the first file descriptor */
-// 				struct sensor_combined_s raw;
-// 				/* copy sensors raw data into local buffer */
-// 				orb_copy(ORB_ID(sensor_combined), sensor_sub_fd, &raw);
-// 				PX4_INFO("Accelerometer:\t%8.4f\t%8.4f\t%8.4f",
-// 					 (double)raw.accelerometer_m_s2[0],
-// 					 (double)raw.accelerometer_m_s2[1],
-// 					 (double)raw.accelerometer_m_s2[2]);
-
-// 				/* set att and publish this information for other apps
-// 				 the following does not have any meaning, it's just an example
-// 				*/
-// 				att.q[0] = raw.accelerometer_m_s2[0];
-// 				att.q[1] = raw.accelerometer_m_s2[1];
-				// att.q[2] = raw.accelerometer_m_s2[2];
-
-// 				INDI_allocator_U.pqr = 
-// 				INDI_allocator_U.u_pqr = 
-// 				INDI_allocator_U.thrust_cmd = 
-// 				INDI_allocator_U.Az = 
-
-// 				codegen.codegen_test_U.reference = 1.0;
-// 				codegen.codegen_test_U.Input1 = 2.0;
-
-// 				codegen.step();
-// 				// codegen_test_step();
-// 				// codegen_test_terminate
-			
-// 				PX4_INFO("velx:\t%8.4f", codegen.codegen_test_Y.Output);
-
-// 				orb_publish(ORB_ID(vehicle_attitude), att_pub, &att);
-// 			}
-
-// 			/* there could be more file descriptors here, in the form like:
-// 			 * if (fds[1..n].revents & POLLIN) {}
-// 			 */
-// 		}
-// 	}
-
-// 	PX4_INFO("exiting");
-// }
 
 int 
 SimulinkWrapper::task_spawn(int argc, char *argv[])

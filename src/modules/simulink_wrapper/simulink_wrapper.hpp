@@ -219,8 +219,6 @@ private:
 		(ParamFloat<px4::params::MC_YAWRATE_D>) _yaw_rate_d,
 		(ParamFloat<px4::params::MC_YAWRATE_FF>) _yaw_rate_ff,
 
-		(ParamFloat<px4::params::MC_YAW_FF>) _yaw_ff,					/**< yaw control feed-forward */
-
 		(ParamFloat<px4::params::MC_DTERM_CUTOFF>) _d_term_cutoff_freq,		/**< Cutoff frequency for the D-term filter */
 
 		(ParamFloat<px4::params::MC_TPA_BREAK_P>) _tpa_breakpoint_p,		/**< Throttle PID Attenuation breakpoint */
@@ -253,7 +251,6 @@ private:
 		(ParamFloat<px4::params::SENS_BOARD_Y_OFF>) _board_offset_y,
 		(ParamFloat<px4::params::SENS_BOARD_Z_OFF>) _board_offset_z,
 
-		(ParamFloat<px4::params::VT_WV_YAWR_SCL>) _vtol_wv_yaw_rate_scale,		/**< Scale value [0, 1] for yaw rate setpoint  */
 		(ParamFloat<px4::params::MC_ATT_RATE_MAX>) _att_rate_sample_rate_max
 	)
 
