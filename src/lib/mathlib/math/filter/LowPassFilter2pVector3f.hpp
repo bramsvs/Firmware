@@ -1,7 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2012-2016 PX4 Development Team. All rights reserved.
- *         Author: David Sidrane <david_s5@nscdg.com>
+ *   Copyright (C) 2018 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,76 +31,65 @@
  *
  ****************************************************************************/
 
-/**
- * @file tap-v1_led.c
- *
- * TAP_V1 LED backend.
- */
+/// @file	LowPassFilter2pVector3f.hpp
+/// @brief	A class to implement a second order low pass filter on a Vector3f
+/// Based on LowPassFilter2p.hpp by Leonard Hall <LeonardTHall@gmail.com>
 
-#include <px4_config.h>
+#pragma once
 
-#include <stdbool.h>
+#include <matrix/math.hpp>
 
-#include "stm32.h"
-#include "board_config.h"
-
-#include <arch/board/board.h>
-
-/*
- * Ideally we'd be able to get these from up_internal.h,
- * but since we want to be able to disable the NuttX use
- * of leds for system indication at will and there is no
- * separate switch, we need to build independent of the
- * CONFIG_ARCH_LEDS configuration switch.
- */
-__BEGIN_DECLS
-extern void led_init(void);
-extern void led_on(int led);
-extern void led_off(int led);
-extern void led_toggle(int led);
-__END_DECLS
-
-__EXPORT void led_init(void)
+namespace math
 {
-	/* Configure LED1-2 GPIOs for output */
-
-	stm32_configgpio(GPIO_BLUE_LED);
-	stm32_configgpio(GPIO_RED_LED);
-}
-
-__EXPORT void led_on(int led)
+class LowPassFilter2pVector3f
 {
-	if (led == 0) {
-		/* Pull down to switch on */
-		stm32_gpiowrite(GPIO_BLUE_LED, false);
+public:
+
+	LowPassFilter2pVector3f(float sample_freq, float cutoff_freq)
+	{
+		// set initial parameters
+		set_cutoff_frequency(sample_freq, cutoff_freq);
 	}
 
-	if (led == 1) {
-		/* Pull down to switch on */
-		stm32_gpiowrite(GPIO_RED_LED, false);
-	}
-}
+	// Change filter parameters
+	void set_cutoff_frequency(float sample_freq, float cutoff_freq);
 
-__EXPORT void led_off(int led)
-{
-	if (led == 0) {
-		/* Pull up to switch off */
-		stm32_gpiowrite(GPIO_BLUE_LED, true);
-	}
+	/**
+	 * Add a new raw value to the filter
+	 *
+	 * @return retrieve the filtered result
+	 */
+	inline matrix::Vector3f apply(const matrix::Vector3f &sample)
+	{
+		// do the filtering
+		const matrix::Vector3f delay_element_0{sample - _delay_element_1 *_a1 - _delay_element_2 * _a2};
+		const matrix::Vector3f output{delay_element_0 *_b0 + _delay_element_1 *_b1 + _delay_element_2 * _b2};
 
-	if (led == 1) {
-		/* Pull up to switch off */
-		stm32_gpiowrite(GPIO_RED_LED, true);
-	}
-}
+		_delay_element_2 = _delay_element_1;
+		_delay_element_1 = delay_element_0;
 
-__EXPORT void led_toggle(int led)
-{
-	if (led == 0) {
-		stm32_gpiowrite(GPIO_BLUE_LED, !stm32_gpioread(GPIO_BLUE_LED));
+		return output;
 	}
 
-	if (led == 1) {
-		stm32_gpiowrite(GPIO_RED_LED, !stm32_gpioread(GPIO_RED_LED));
-	}
-}
+	// Return the cutoff frequency
+	float get_cutoff_freq() const { return _cutoff_freq; }
+
+	// Reset the filter state to this value
+	matrix::Vector3f reset(const matrix::Vector3f &sample);
+
+private:
+
+	float _cutoff_freq{0.0f};
+
+	float _a1{0.0f};
+	float _a2{0.0f};
+
+	float _b0{0.0f};
+	float _b1{0.0f};
+	float _b2{0.0f};
+
+	matrix::Vector3f _delay_element_1{0.0f, 0.0f, 0.0f};	// buffered sample -1
+	matrix::Vector3f _delay_element_2{0.0f, 0.0f, 0.0f};	// buffered sample -2
+};
+
+} // namespace math
