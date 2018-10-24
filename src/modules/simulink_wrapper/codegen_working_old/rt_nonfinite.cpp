@@ -7,13 +7,13 @@
  *
  * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.49
+ * Model version              : 1.6830
  * Simulink Coder version : 9.0 (R2018b) 24-May-2018
- * C++ source code generated on : Thu Oct 18 10:11:03 2018
+ * C++ source code generated on : Tue Oct  2 03:48:13 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
- * Embedded hardware selection: Intel->x86-64 (Windows64)
+ * Embedded hardware selection: 32-bit Generic
  * Code generation objectives: Unspecified
  * Validation result: Not run
  */
@@ -73,16 +73,42 @@ extern "C" {
     if (bitsPerReal == 32U) {
       result = rtIsNaNF((real32_T)value);
     } else {
-      union {
-        LittleEndianIEEEDouble bitVal;
-        real_T fltVal;
-      } tmpVal;
+      uint16_T one = 1U;
+      enum {
+        LittleEndian,
+        BigEndian
+      } machByteOrder = (*((uint8_T *) &one) == 1U) ? LittleEndian : BigEndian;
+      switch (machByteOrder) {
+       case LittleEndian:
+        {
+          union {
+            LittleEndianIEEEDouble bitVal;
+            real_T fltVal;
+          } tmpVal;
 
-      tmpVal.fltVal = value;
-      result = (boolean_T)((tmpVal.bitVal.words.wordH & 0x7FF00000) ==
-                           0x7FF00000 &&
-                           ( (tmpVal.bitVal.words.wordH & 0x000FFFFF) != 0 ||
-                            (tmpVal.bitVal.words.wordL != 0) ));
+          tmpVal.fltVal = value;
+          result = (boolean_T)((tmpVal.bitVal.words.wordH & 0x7FF00000) ==
+                               0x7FF00000 &&
+                               ( (tmpVal.bitVal.words.wordH & 0x000FFFFF) != 0 ||
+                                (tmpVal.bitVal.words.wordL != 0) ));
+          break;
+        }
+
+       case BigEndian:
+        {
+          union {
+            BigEndianIEEEDouble bitVal;
+            real_T fltVal;
+          } tmpVal;
+
+          tmpVal.fltVal = value;
+          result = (boolean_T)((tmpVal.bitVal.words.wordH & 0x7FF00000) ==
+                               0x7FF00000 &&
+                               ( (tmpVal.bitVal.words.wordH & 0x000FFFFF) != 0 ||
+                                (tmpVal.bitVal.words.wordL != 0) ));
+          break;
+        }
+      }
     }
 
     return result;

@@ -7,9 +7,9 @@
  *
  * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.49
+ * Model version              : 1.7
  * Simulink Coder version : 9.0 (R2018b) 24-May-2018
- * C++ source code generated on : Thu Oct 18 10:11:03 2018
+ * C++ source code generated on : Tue Oct  9 01:33:35 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -33,12 +33,6 @@
  * ROOT_IO_FORMAT: 2 (Part of model data structure)
  */
 # define ROOT_IO_FORMAT                2
-
-/* Macros generated for backwards compatibility  */
-#ifndef rtmGetStopRequested
-# define rtmGetStopRequested(rtm)      ((void*) 0)
-#endif
-
 #define MODEL_CLASSNAME                INDI_allocatorModelClass
 #define MODEL_STEPNAME                 step
 #endif                                 /* RTW_HEADER_rtmodel_h_ */

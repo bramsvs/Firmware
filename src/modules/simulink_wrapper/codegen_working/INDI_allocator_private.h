@@ -7,9 +7,9 @@
  *
  * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.49
+ * Model version              : 1.7
  * Simulink Coder version : 9.0 (R2018b) 24-May-2018
- * C++ source code generated on : Thu Oct 18 10:11:03 2018
+ * C++ source code generated on : Tue Oct  9 01:33:35 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -22,4 +22,21 @@
 #define RTW_HEADER_INDI_allocator_private_h_
 #include "rtwtypes.h"
 #include "multiword_types.h"
+
+/* Private macros used by the generated code to access rtModel */
+#ifndef rtmIsMajorTimeStep
+# define rtmIsMajorTimeStep(rtm)       (((rtm)->Timing.simTimeStep) == MAJOR_TIME_STEP)
+#endif
+
+#ifndef rtmIsMinorTimeStep
+# define rtmIsMinorTimeStep(rtm)       (((rtm)->Timing.simTimeStep) == MINOR_TIME_STEP)
+#endif
+
+#ifndef rtmSetTPtr
+# define rtmSetTPtr(rtm, val)          ((rtm)->Timing.t = (val))
+#endif
+
+/* private model entry point functions */
+extern void INDI_allocator_derivatives();
+
 #endif                                 /* RTW_HEADER_INDI_allocator_private_h_ */
