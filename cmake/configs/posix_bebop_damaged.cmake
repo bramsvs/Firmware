@@ -14,9 +14,9 @@ set(config_module_list
 	#
 	drivers/linux_sbus
 	modules/sensors
-	# platforms/posix/drivers/df_ms5607_wrapper
+	# platforms/posix/drivers/df_ms5607_wrapper # these two are missing
 	platforms/posix/drivers/df_mpu6050_wrapper
-	# platforms/posix/drivers/df_ak8963_wrapper
+	# platforms/posix/drivers/df_ak8963_wrapper # these two are missing
 	platforms/posix/drivers/df_bebop_bus_wrapper
 	platforms/posix/drivers/df_bebop_rangefinder_wrapper
 	platforms/posix/drivers/bebop_flow
@@ -48,7 +48,7 @@ set(config_module_list
 	modules/fw_att_control
 	modules/fw_pos_control_l1
 	modules/vtol_att_control
-	modules/simulink_wrapper
+	modules/simulink_wrapper # codegen
 
 
 	#

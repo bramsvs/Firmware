@@ -10,8 +10,7 @@
 sh /etc/init.d/rc.mc_defaults
 
 # set MIXER quad_w
-
 set MIXER pass
 param set MC_ATT_RATE_MAX 250
 
-param set EKF2_AID_MASK 24
+# param set EKF2_AID_MASK 24
