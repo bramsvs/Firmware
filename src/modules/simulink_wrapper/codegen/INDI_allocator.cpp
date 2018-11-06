@@ -7,9 +7,9 @@
  *
  * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.49
+ * Model version              : 1.65
  * Simulink Coder version : 9.0 (R2018b) 24-May-2018
- * C++ source code generated on : Thu Oct 18 10:11:03 2018
+ * C++ source code generated on : Tue Nov  6 10:11:18 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -42,8 +42,8 @@ void INDI_allocatorModelClass::step()
   int32_T kAcol;
   int8_T ii_data[4];
   int32_T idx;
-  static const real_T g[16] = { 15.0, 14.0, -0.25, 1.0, -15.0, 14.0, 0.25, 1.0,
-    -15.0, -14.0, -0.25, 1.0, 15.0, -14.0, 0.25, 1.0 };
+  static const real_T g[16] = { 7.0, 5.0, -0.01, 30.0, -7.0, 5.0, 0.01, 30.0,
+    -7.0, -5.0, -0.01, 30.0, 7.0, -5.0, 0.01, 30.0 };
 
   static const real_T h[16] = { 0.0, 0.0, -0.0612093, 0.0, 0.0, 0.0,
     0.065367000000000008, 0.0, 0.0, 0.0, -0.0657419, 0.0, 0.0, 0.0, 0.0654516,
@@ -134,10 +134,10 @@ void INDI_allocatorModelClass::step()
     300.0) * 4.0;
   memcpy(&G[0], &g[0], sizeof(real_T) << 4U);
   memcpy(&G2[0], &h[0], sizeof(real_T) << 4U);
-  G[2] = 0.25;
-  G[6] = -0.25;
-  G[10] = 0.25;
-  G[14] = -0.25;
+  G[2] = 0.01;
+  G[6] = -0.01;
+  G[10] = 0.01;
+  G[14] = -0.01;
   G2[2] = 0.0612093;
   G2[6] = -0.065367000000000008;
   G2[10] = 0.0657419;
@@ -368,7 +368,7 @@ void INDI_allocatorModelClass::step()
   /* Outport: '<Root>/w_cmd_px4' incorporates:
    *  MATLAB Function: '<Root>/MATLAB Function'
    */
-  INDI_allocator_Y.w_cmd_px4[0] = (rtb_w_cmd[0] - 300.0) * 2.0 / 956.0 + -1.0;
+  INDI_allocator_Y.w_cmd_px4[0] = 1.0;
 
   /* Outport: '<Root>/w_cmd' */
   INDI_allocator_Y.w_cmd[1] = rtb_w_cmd[1];
@@ -376,7 +376,7 @@ void INDI_allocatorModelClass::step()
   /* Outport: '<Root>/w_cmd_px4' incorporates:
    *  MATLAB Function: '<Root>/MATLAB Function'
    */
-  INDI_allocator_Y.w_cmd_px4[1] = (rtb_w_cmd[1] - 300.0) * 2.0 / 956.0 + -1.0;
+  INDI_allocator_Y.w_cmd_px4[1] = -1.0;
 
   /* Outport: '<Root>/w_cmd' */
   INDI_allocator_Y.w_cmd[2] = rtb_w_cmd[2];
@@ -384,7 +384,7 @@ void INDI_allocatorModelClass::step()
   /* Outport: '<Root>/w_cmd_px4' incorporates:
    *  MATLAB Function: '<Root>/MATLAB Function'
    */
-  INDI_allocator_Y.w_cmd_px4[2] = (rtb_w_cmd[2] - 300.0) * 2.0 / 956.0 + -1.0;
+  INDI_allocator_Y.w_cmd_px4[2] = -1.0;
 
   /* Outport: '<Root>/w_cmd' */
   INDI_allocator_Y.w_cmd[3] = rtb_w_cmd[3];
@@ -392,7 +392,7 @@ void INDI_allocatorModelClass::step()
   /* Outport: '<Root>/w_cmd_px4' incorporates:
    *  MATLAB Function: '<Root>/MATLAB Function'
    */
-  INDI_allocator_Y.w_cmd_px4[3] = (rtb_w_cmd[3] - 300.0) * 2.0 / 956.0 + -1.0;
+  INDI_allocator_Y.w_cmd_px4[3] = -1.0;
 
   /* DiscreteStateSpace: '<Root>/actuator dynamics' */
   {
@@ -446,14 +446,14 @@ void INDI_allocatorModelClass::step()
   /* Update for DiscreteStateSpace: '<Root>/actuator dynamics' */
   {
     real_T xnew[4];
-    xnew[0] = (0.84)*INDI_allocator_DW.actuatordynamics_DSTATE[0];
-    xnew[0] += (0.16)*rtb_w_cmd[0];
-    xnew[1] = (0.84)*INDI_allocator_DW.actuatordynamics_DSTATE[1];
-    xnew[1] += (0.16)*rtb_w_cmd[1];
-    xnew[2] = (0.84)*INDI_allocator_DW.actuatordynamics_DSTATE[2];
-    xnew[2] += (0.16)*rtb_w_cmd[2];
-    xnew[3] = (0.84)*INDI_allocator_DW.actuatordynamics_DSTATE[3];
-    xnew[3] += (0.16)*rtb_w_cmd[3];
+    xnew[0] = (0.6)*INDI_allocator_DW.actuatordynamics_DSTATE[0];
+    xnew[0] += (0.4)*rtb_w_cmd[0];
+    xnew[1] = (0.6)*INDI_allocator_DW.actuatordynamics_DSTATE[1];
+    xnew[1] += (0.4)*rtb_w_cmd[1];
+    xnew[2] = (0.6)*INDI_allocator_DW.actuatordynamics_DSTATE[2];
+    xnew[2] += (0.4)*rtb_w_cmd[2];
+    xnew[3] = (0.6)*INDI_allocator_DW.actuatordynamics_DSTATE[3];
+    xnew[3] += (0.4)*rtb_w_cmd[3];
     (void) memcpy(&INDI_allocator_DW.actuatordynamics_DSTATE[0], xnew,
                   sizeof(real_T)*4);
   }

@@ -48,6 +48,7 @@
 #include "simulink_wrapper.hpp"
 
 #include "codegen/INDI_allocator.h"
+#include <px4_log.h>
 
 #define TPA_RATE_LOWER_LIMIT 0.05f
 
@@ -551,8 +552,8 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	codegen_input.pqr[1] = static_cast<double>(rates(1));
 	codegen_input.pqr[2] = static_cast<double>(rates(2));
 
-	codegen_input.u_pqr[0] = static_cast<double>(-60.f*rates_err(0)); // 80 80 50
-	codegen_input.u_pqr[1] = static_cast<double>(-60.f*rates_err(1));
+	codegen_input.u_pqr[0] = static_cast<double>(-30.f*rates_err(0)); // 80 80 50
+	codegen_input.u_pqr[1] = static_cast<double>(-30.f*rates_err(1));
 	codegen_input.u_pqr[2] = static_cast<double>(50.f*rates_err(2)); // inverse yaw!
 
 	codegen_input.thrust_cmd = static_cast<double>(_thrust_sp);
@@ -572,6 +573,7 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	// PX4_LOG("%f", static_cast<double>(_vehicle_local_position.az));
 	// PX4_LOG("%f", static_cast<double>(_sensor_combined.accelerometer_m_s2[2]));
 	// PX4_LOG("%f", static_cast<double>(_thrust_sp));
+	// PX4_INFO("%f", static_cast<double>(_actuators.control[0]));
 
 
 	// /* update integral only if we are not landed */

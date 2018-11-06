@@ -7,9 +7,9 @@
  *
  * Code generation for model "INDI_allocator".
  *
- * Model version              : 1.49
+ * Model version              : 1.65
  * Simulink Coder version : 9.0 (R2018b) 24-May-2018
- * C++ source code generated on : Thu Oct 18 10:11:03 2018
+ * C++ source code generated on : Tue Nov  6 10:11:18 2018
  *
  * Target selection: grt.tlc
  * Note: GRT includes extra infrastructure and instrumentation for prototyping
@@ -21,18 +21,19 @@
 #ifndef RTW_HEADER_INDI_allocator_types_h_
 #define RTW_HEADER_INDI_allocator_types_h_
 #include "rtwtypes.h"
-#ifndef DEFINED_TYPEDEF_FOR_struct_GAa9i7yHa5FGkHT9NDkSoB_
-#define DEFINED_TYPEDEF_FOR_struct_GAa9i7yHa5FGkHT9NDkSoB_
+#ifndef DEFINED_TYPEDEF_FOR_struct_MbZYgFTzRhggMPJGt0Mjb_
+#define DEFINED_TYPEDEF_FOR_struct_MbZYgFTzRhggMPJGt0Mjb_
 
 typedef struct {
   real_T primary_axis[3];
   real_T Iv[9];
   real_T Ip[9];
   real_T t_indi;
+  real_T t_rotor_sensor;
   real_T signr;
   real_T failure_id;
   real_T failure_time;
-} struct_GAa9i7yHa5FGkHT9NDkSoB;
+} struct_MbZYgFTzRhggMPJGt0Mjb;
 
 #endif
 
@@ -81,17 +82,17 @@ typedef struct {
 
 #endif
 
-#ifndef DEFINED_TYPEDEF_FOR_struct_htI6pdZBiM7VXFaZUPrsNC_
-#define DEFINED_TYPEDEF_FOR_struct_htI6pdZBiM7VXFaZUPrsNC_
+#ifndef DEFINED_TYPEDEF_FOR_struct_UP5xrlYk6fdQaGicU0Ko1F_
+#define DEFINED_TYPEDEF_FOR_struct_UP5xrlYk6fdQaGicU0Ko1F_
 
 typedef struct {
   real_T freq;
   real_T g;
   real_T wRotorMax;
   real_T wRotorMin;
-  struct_GAa9i7yHa5FGkHT9NDkSoB sihao;
+  struct_MbZYgFTzRhggMPJGt0Mjb sihao;
   struct_UBKIR2IhXgB4ZvNniEGecB simple;
-} struct_htI6pdZBiM7VXFaZUPrsNC;
+} struct_UP5xrlYk6fdQaGicU0Ko1F;
 
 #endif
 
