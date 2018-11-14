@@ -1,4 +1,4 @@
-MODEL=INDI_allocator
+MODEL=RateController
 NUMST=1
 NCSTATES=0
 HAVESTDIO

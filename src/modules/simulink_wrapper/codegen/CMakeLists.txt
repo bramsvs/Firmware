@@ -7,7 +7,7 @@
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=float-equal -Wno-error=double-promotion -Wno-error=aggressive-loop-optimizations -Wno-error=array-bounds"
     )
     add_definitions(
-        -DMODEL=INDI_allocator
+        -DMODEL=RateController
 -DNUMST=1
 -DNCSTATES=0
 -DHAVESTDIO

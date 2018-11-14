@@ -47,7 +47,7 @@
 
 #include "simulink_wrapper.hpp"
 
-#include "codegen/INDI_allocator.h"
+#include "codegen/RateController.h"
 #include <px4_log.h>
 
 #define TPA_RATE_LOWER_LIMIT 0.05f
@@ -59,11 +59,11 @@
 
 using namespace matrix;
 
-INDI_allocatorModelClass codegen;
+RateControllerModelClass rateController;
 
-// These are parameters are defined as storage class ImportedExtern in Matlab 
-REAL_T t_indi;
-REAL_T t_w = static_cast<double>(1/40.f);
+// // These are parameters are defined as storage class ImportedExtern in Matlab 
+// REAL_T t_indi;
+// REAL_T t_w = 1/40.f;
 
 int 
 SimulinkWrapper::print_usage(const char *reason)
@@ -95,7 +95,7 @@ SimulinkWrapper::SimulinkWrapper() :
 	{initial_update_rate_hz, 50.f},
 	{initial_update_rate_hz, 50.f}} // will be initialized correctly when params are loaded
 {
-	codegen.initialize(); 
+	rateController.initialize(); 
 
 	for (uint8_t i = 0; i < MAX_GYRO_COUNT; i++) {
 		_sensor_gyro_sub[i] = -1;
@@ -200,7 +200,7 @@ SimulinkWrapper::parameters_updated()
 
 	_sample_rate_max = _att_rate_sample_rate_max.get();
 
-	t_indi =  static_cast<double>(_sample_rate_max);
+	// t_indi = _sample_rate_max;
 }
 
 void
@@ -546,35 +546,33 @@ SimulinkWrapper::control_attitude_rates(float dt)
 
 	Vector3f rates_err = (rates - _rates_sp);
 
-	ExtU_INDI_allocator_T codegen_input;
+	ExtU_RateController_T rateControl_input;
 
-	codegen_input.pqr[0] = static_cast<double>(rates(0));
-	codegen_input.pqr[1] = static_cast<double>(rates(1));
-	codegen_input.pqr[2] = static_cast<double>(rates(2));
+	rateControl_input.rates[0] = rates(0);
+	rateControl_input.rates[1] = rates(1);
+	rateControl_input.rates[2] = rates(2);
 
-	codegen_input.u_pqr[0] = static_cast<double>(-30.f*rates_err(0)); // 80 80 50
-	codegen_input.u_pqr[1] = static_cast<double>(-30.f*rates_err(1));
-	codegen_input.u_pqr[2] = static_cast<double>(50.f*rates_err(2)); // inverse yaw!
+	rateControl_input.rates_dot_sp[0] = -30.f*rates_err(0); // 80 80 50
+	rateControl_input.rates_dot_sp[1] = -30.f*rates_err(1);
+	rateControl_input.rates_dot_sp[2] = 50.f*rates_err(2); // inverse yaw!
 
-	codegen_input.thrust_cmd = static_cast<double>(_thrust_sp);
-	// codegen_input.Az = static_cast<double>(_vehicle_local_position.az);
+	rateControl_input.thrust_sp =_thrust_sp;
+	rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];
 
-	codegen.INDI_allocator_U = codegen_input;
+	rateController.RateController_U = rateControl_input;
 
-
-	codegen.step();
+	rateController.step();
 
 	// See mixer file pass.main.mix for exact control allocation.
-	_actuators.control[0] = codegen.INDI_allocator_Y.w_cmd_px4[0];
-	_actuators.control[1] = codegen.INDI_allocator_Y.w_cmd_px4[1];
-	_actuators.control[2] = codegen.INDI_allocator_Y.w_cmd_px4[2];
-	_actuators.control[3] = codegen.INDI_allocator_Y.w_cmd_px4[3];
+	_actuators.control[0] = rateController.RateController_Y.actuators_control[0];
+	_actuators.control[1] = rateController.RateController_Y.actuators_control[1];
+	_actuators.control[2] = rateController.RateController_Y.actuators_control[2];
+	_actuators.control[3] = rateController.RateController_Y.actuators_control[3];
 
-	// PX4_LOG("%f", static_cast<double>(_vehicle_local_position.az));
-	// PX4_LOG("%f", static_cast<double>(_sensor_combined.accelerometer_m_s2[2]));
-	// PX4_LOG("%f", static_cast<double>(_thrust_sp));
-	// PX4_INFO("%f", static_cast<double>(_actuators.control[0]));
-
+	// PX4_LOG("%f",_vehicle_local_position.az));
+	// PX4_LOG("%f",_sensor_combined.accelerometer_m_s2[2]));
+	// PX4_LOG("%f",_thrust_sp));
+	// PX4_INFO("%f",rateController.ExtY_RateController_T.G[15]));
 
 	// /* update integral only if we are not landed */
 	// if (!_vehicle_land_detected.maybe_landed && !_vehicle_land_detected.landed) {
@@ -935,7 +933,7 @@ SimulinkWrapper::run()
 	orb_unsubscribe(_sensor_combined_sub);
 	orb_unsubscribe(_vehicle_local_position_sub);
 
-	codegen.terminate();
+	rateController.terminate();
 }
 
 int 
