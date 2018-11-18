@@ -130,6 +130,8 @@ SimulinkWrapper::SimulinkWrapper() :
 	pub_dbg = orb_advertise(ORB_ID(debug_key_value), &dbg);
 	
 	PX4_INFO("DEBUG LOG INIT");
+
+	pub_rate_control_input = orb_advertise(ORB_ID(rate_control_input), &_rate_control_input);
 }
 
 void
@@ -560,8 +562,20 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];
 
 	rateController.RateController_U = rateControl_input;
-
+	
 	rateController.step();
+
+	_rate_control_input.timestamp = hrt_absolute_time();
+	_rate_control_input.rates[0] = rateControl_input.rates[0];
+	_rate_control_input.rates[1] = rateControl_input.rates[1];
+	_rate_control_input.rates[2] = rateControl_input.rates[2];
+
+	_rate_control_input.rates_dot_sp[0] = rateControl_input.rates_dot_sp[0];
+	_rate_control_input.rates_dot_sp[1] = rateControl_input.rates_dot_sp[1];
+	_rate_control_input.rates_dot_sp[2] = rateControl_input.rates_dot_sp[2];
+
+	_rate_control_input.thrust_sp = rateControl_input.thrust_sp =_thrust_sp;
+	_rate_control_input.accel_z = rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];
 
 	// See mixer file pass.main.mix for exact control allocation.
 	_actuators.control[0] = rateController.RateController_Y.actuators_control[0];
@@ -862,6 +876,9 @@ SimulinkWrapper::run()
 
 				int instance;
 				orb_publish_auto(ORB_ID(rate_ctrl_status), &_controller_status_pub, &rate_ctrl_status, &instance, ORB_PRIO_DEFAULT);
+
+				orb_publish(ORB_ID(rate_control_input), pub_rate_control_input, &_rate_control_input);
+
 			}
 
 			if (_v_control_mode.flag_control_termination_enabled) {
