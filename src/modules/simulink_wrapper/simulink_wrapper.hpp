@@ -61,6 +61,8 @@
 #include <uORB/topics/vehicle_land_detected.h>
 
 #include <uORB/topics/debug_key_value.h>
+#include <uORB/topics/rate_control_input.h>
+
 
 /**
  * Multicopter attitude control app start / stop handling function
@@ -267,5 +269,9 @@ private:
 
     struct debug_key_value_s dbg {};
 	orb_advert_t pub_dbg {nullptr};
+	// struct debug_vect_s debug_vect {};
+	// orb_advert_t pub_debug_vect {nullptr};
+	struct rate_control_input_s _rate_control_input {};
+	orb_advert_t pub_rate_control_input {nullptr};
 };
 

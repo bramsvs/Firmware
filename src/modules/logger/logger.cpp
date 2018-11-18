@@ -625,6 +625,7 @@ void Logger::add_default_topics()
 	add_topic("position_setpoint_triplet", 200);
 	add_topic("radio_status");
 	add_topic("rate_ctrl_status", 30);
+	add_topic("rate_control_input"); // run at full rate to for replay
 	add_topic("sensor_combined", 100);
 	add_topic("sensor_preflight", 200);
 	add_topic("system_power", 500);
