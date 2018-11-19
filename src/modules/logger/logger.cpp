@@ -603,7 +603,7 @@ bool Logger::try_to_subscribe_topic(LoggerSubscription &sub, int multi_instance)
 void Logger::add_default_topics()
 {
 	// Note: try to avoid setting the interval where possible, as it increases RAM usage
-	add_topic("actuator_controls_0", 100);
+	add_topic("actuator_controls_0"); // run at full rate to for replay
 	add_topic("actuator_controls_1", 100);
 	add_topic("actuator_outputs", 100);
 	add_topic("airspeed", 200);
