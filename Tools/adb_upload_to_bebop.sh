@@ -55,15 +55,18 @@ adb push $SRC_DIR/ROMFS/px4fmu_common/mixers/pass.main.mix /home/root
 
 adb push $SRC_DIR/posix-configs/bebop/px4.config /home/root
 
-# restart the process after uploading
-if [ "$restart_px4" = true ]; then
-    echo "Restarting PX4 process"
-    adb shell /etc/init.d/rcS_mode_default 2>/dev/null 1>/dev/null &
-fi
-
 # make sure all buffered blocks are written to disk
 echo "Syncing FS..."
 adb shell sync
+
+# restart the process after uploading
+if [ "$restart_px4" = true ]; then
+    # echo "Restarting PX4 process"
+    # adb shell /etc/init.d/rcS_mode_default 2>/dev/null 1>/dev/null &
+    echo "Rebooting Bebop"
+    adb shell reboot
+fi
+
 
 echo "Disconnecting from Bebop"
 adb disconnect
