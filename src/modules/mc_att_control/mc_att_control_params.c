@@ -576,15 +576,3 @@ PARAM_DEFINE_FLOAT(MC_DTERM_CUTOFF, 30.f);
  * @group Multicopter Attitude Control
  */
 PARAM_DEFINE_INT32(MC_AIRMODE, 0);
-
-/**
- * Rate controller maximum sample rate
- *
- * @unit Hz
- * @min 10
- * @max 1000
- * @decimal 0
- * @increment 1
- * @group Multicopter Attitude Control
- */
-PARAM_DEFINE_FLOAT(MC_ATT_RATE_MAX, 1000.0f);

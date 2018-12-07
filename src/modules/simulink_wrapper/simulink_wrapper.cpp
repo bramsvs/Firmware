@@ -60,7 +60,7 @@
 using namespace matrix;
 
 RateControllerModelClass rateController;
-
+// RateControlParamsType RateControlParams;
 // // These are parameters are defined as storage class ImportedExtern in Matlab 
 // REAL_T t_indi;
 // REAL_T t_w = 1/40.f;
@@ -201,6 +201,11 @@ SimulinkWrapper::parameters_updated()
 	_board_rotation = board_rotation_offset * _board_rotation;
 
 	_sample_rate_max = _att_rate_sample_rate_max.get();
+
+	RateControlParams.roll = _att_roll_eff.get();
+	RateControlParams.pitch = _att_pitch_eff.get();
+	RateControlParams.yaw = _att_yaw_eff.get();
+	RateControlParams.accel_z = _att_az_eff.get();
 
 	// t_indi = _sample_rate_max;
 }
@@ -556,7 +561,7 @@ SimulinkWrapper::control_attitude_rates(float dt)
 
 	rateControl_input.rates_dot_sp[0] = -30.f*rates_err(0); // 80 80 50
 	rateControl_input.rates_dot_sp[1] = -30.f*rates_err(1);
-	rateControl_input.rates_dot_sp[2] = 50.f*rates_err(2); // inverse yaw!
+	rateControl_input.rates_dot_sp[2] = 50.f*rates_err(2);
 
 	rateControl_input.thrust_sp =_thrust_sp;
 	rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];

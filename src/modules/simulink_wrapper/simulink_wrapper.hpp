@@ -253,7 +253,12 @@ private:
 		(ParamFloat<px4::params::SENS_BOARD_Y_OFF>) _board_offset_y,
 		(ParamFloat<px4::params::SENS_BOARD_Z_OFF>) _board_offset_z,
 
-		(ParamFloat<px4::params::MC_ATT_RATE_MAX>) _att_rate_sample_rate_max
+		(ParamFloat<px4::params::MC_ATT_RATE_MAX>) _att_rate_sample_rate_max,
+		(ParamFloat<px4::params::MC_ATT_ROLL_EFF>) _att_roll_eff,
+		(ParamFloat<px4::params::MC_ATT_PITCH_EFF>) _att_pitch_eff,
+		(ParamFloat<px4::params::MC_ATT_YAW_EFF>) _att_yaw_eff,
+		(ParamFloat<px4::params::MC_ATT_AZ_EFF>) _att_az_eff
+
 	)
 
 	matrix::Vector3f _attitude_p;		/**< P gain for attitude control */
