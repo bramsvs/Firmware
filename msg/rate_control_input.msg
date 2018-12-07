@@ -1,7 +1,7 @@
 uint64 timestamp		# time since system start (microseconds)
 
 float32[3]  rates
-float32[3]  rates_dot_sp
+float32[3]  rates_sp
 
 float32     thrust_sp
 float32     accel_z
