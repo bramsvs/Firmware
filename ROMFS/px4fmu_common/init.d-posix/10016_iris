@@ -7,10 +7,27 @@
 # @maintainer Julian Oes <julian@oes.ch>
 #
 
+USE_SIMULINK_WRAPPER=${PX4_USE_SIMULINK_WRAPPER:=true}
+
 sh /etc/init.d/rc.mc_defaults
 
 # set MIXER quad_w
 set MIXER pass
-param set MC_ATT_RATE_MAX 250
+
+if $USE_SIMULINK_WRAPPER; then
+    param set MC_ATT_RATE_MAX 250
+
+	param set MC_ATT_ROLL_GAIN 16
+	param set MC_ATT_PITCH_GN 16
+	param set MC_ATT_YAW_GAIN 1
+	param set MC_ATT_ROLL_EFF 170
+	param set MC_ATT_PITCH_EFF 170
+
+	param set MC_ATT_YAW_EFF 60
+	param set MC_ATT_YAW_D_EFF 3
+
+	param set MC_ATT_AZ_EFF 8
+	param set MC_ATT_T_ACT 0.025
+fi
 
 # param set EKF2_AID_MASK 24

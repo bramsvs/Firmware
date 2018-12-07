@@ -32,7 +32,7 @@
 ############################################################################
 
 # First add subdirectory
-add_subdirectory(codegen)
+add_subdirectory(RateControl)
 
 px4_add_module(
 	MODULE simulink_wrapper
@@ -42,6 +42,6 @@ px4_add_module(
 	SRCS
 		simulink_wrapper.cpp
 	DEPENDS
-		simulink_codegen
+		simulink_RateControl
 	)
 

@@ -5,6 +5,7 @@ add_definitions(
 	-D__PX4_POSIX_BEBOP
 	-D__DF_LINUX # Define needed DriverFramework
 	-D__DF_BEBOP # Define needed DriverFramework
+	-D__PX4_POSIX_BEBOP_DAMAGED
 	)
 
 set(config_module_list

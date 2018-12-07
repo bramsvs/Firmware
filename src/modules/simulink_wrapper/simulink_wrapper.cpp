@@ -47,7 +47,7 @@
 
 #include "simulink_wrapper.hpp"
 
-#include "codegen/RateController.h"
+#include "RateControl/RateControl.h"
 #include <px4_log.h>
 
 #define TPA_RATE_LOWER_LIMIT 0.05f
@@ -59,11 +59,7 @@
 
 using namespace matrix;
 
-RateControllerModelClass rateController;
-// RateControlParamsType RateControlParams;
-// // These are parameters are defined as storage class ImportedExtern in Matlab 
-// REAL_T t_indi;
-// REAL_T t_w = 1/40.f;
+RateControlModelClass RateControl;
 
 int 
 SimulinkWrapper::print_usage(const char *reason)
@@ -95,7 +91,7 @@ SimulinkWrapper::SimulinkWrapper() :
 	{initial_update_rate_hz, 50.f},
 	{initial_update_rate_hz, 50.f}} // will be initialized correctly when params are loaded
 {
-	rateController.initialize(); 
+	RateControl.initialize(); 
 
 	for (uint8_t i = 0; i < MAX_GYRO_COUNT; i++) {
 		_sensor_gyro_sub[i] = -1;
@@ -202,10 +198,17 @@ SimulinkWrapper::parameters_updated()
 
 	_sample_rate_max = _att_rate_sample_rate_max.get();
 
-	RateControlParams.roll = _att_roll_eff.get();
-	RateControlParams.pitch = _att_pitch_eff.get();
-	RateControlParams.yaw = _att_yaw_eff.get();
-	RateControlParams.accel_z = _att_az_eff.get();
+	RateControlParams.roll_gain = _att_roll_gain.get();
+	RateControlParams.pitch_gain = _att_pitch_gain.get();
+	RateControlParams.yaw_gain = _att_yaw_gain.get();
+
+	RateControlParams.roll_eff = _att_roll_eff.get();
+	RateControlParams.pitch_eff = _att_pitch_eff.get();
+	RateControlParams.yaw_eff = _att_yaw_eff.get();
+	RateControlParams.yaw_d_eff = _att_yaw_d_eff.get();
+	RateControlParams.az_eff = _att_az_eff.get();
+
+	RateControlParams.t_act = _att_t_act.get();
 
 	// t_indi = _sample_rate_max;
 }
@@ -546,52 +549,47 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	rates(1) -= _sensor_bias.gyro_y_bias;
 	rates(2) -= _sensor_bias.gyro_z_bias;
 
-	// Vector3f rates_filtered(
-	// 	_lp_filters_d[0].apply(rates(0)),
-	// 	_lp_filters_d[1].apply(rates(1)),
-	// 	_lp_filters_d[2].apply(rates(2)));
-
-	Vector3f rates_err = (rates - _rates_sp);
-
-	ExtU_RateController_T rateControl_input;
+	ExtU_RateControl_T rateControl_input;
 
 	rateControl_input.rates[0] = rates(0);
 	rateControl_input.rates[1] = rates(1);
 	rateControl_input.rates[2] = rates(2);
 
-	rateControl_input.rates_dot_sp[0] = -30.f*rates_err(0); // 80 80 50
-	rateControl_input.rates_dot_sp[1] = -30.f*rates_err(1);
-	rateControl_input.rates_dot_sp[2] = 50.f*rates_err(2);
+	rateControl_input.rates_sp[0] = _rates_sp(0);
+	rateControl_input.rates_sp[1] = _rates_sp(1);
+	rateControl_input.rates_sp[2] = _rates_sp(2);
 
-	rateControl_input.thrust_sp =_thrust_sp;
 	rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];
 
-	rateController.RateController_U = rateControl_input;
+	rateControl_input.thrust_sp =_thrust_sp;
+
+	RateControl.RateControl_U = rateControl_input;
 	
-	rateController.step();
+	RateControl.step0();
 
 	_rate_control_input.timestamp = hrt_absolute_time();
 	_rate_control_input.rates[0] = rateControl_input.rates[0];
 	_rate_control_input.rates[1] = rateControl_input.rates[1];
 	_rate_control_input.rates[2] = rateControl_input.rates[2];
 
-	_rate_control_input.rates_dot_sp[0] = rateControl_input.rates_dot_sp[0];
-	_rate_control_input.rates_dot_sp[1] = rateControl_input.rates_dot_sp[1];
-	_rate_control_input.rates_dot_sp[2] = rateControl_input.rates_dot_sp[2];
+	_rate_control_input.rates_sp[0] = rateControl_input.rates_sp[0];
+	_rate_control_input.rates_sp[1] = rateControl_input.rates_sp[1];
+	_rate_control_input.rates_sp[2] = rateControl_input.rates_sp[2];
 
 	_rate_control_input.thrust_sp = rateControl_input.thrust_sp =_thrust_sp;
-	_rate_control_input.accel_z = rateControl_input.accel_z =_sensor_combined.accelerometer_m_s2[2];
 
-	// See mixer file pass.main.mix for exact control allocation.
-	_actuators.control[0] = rateController.RateController_Y.actuators_control[0];
-	_actuators.control[1] = rateController.RateController_Y.actuators_control[1];
-	_actuators.control[2] = rateController.RateController_Y.actuators_control[2];
-	_actuators.control[3] = rateController.RateController_Y.actuators_control[3];
+	_rate_control_input.accel_z = rateControl_input.accel_z;
+
+	// See mixer file `pass.main.mix` for exact control allocation.
+	_actuators.control[0] = RateControl.RateControl_Y.actuators_control[0];
+	_actuators.control[1] = RateControl.RateControl_Y.actuators_control[1];
+	_actuators.control[2] = RateControl.RateControl_Y.actuators_control[2];
+	_actuators.control[3] = RateControl.RateControl_Y.actuators_control[3];
 
 	// PX4_LOG("%f",_vehicle_local_position.az));
 	// PX4_LOG("%f",_sensor_combined.accelerometer_m_s2[2]));
 	// PX4_LOG("%f",_thrust_sp));
-	// PX4_INFO("%f",rateController.ExtY_RateController_T.G[15]));
+	// PX4_INFO("%f",RateControl.ExtY_RateControl_T.G[15]));
 
 	// /* update integral only if we are not landed */
 	// if (!_vehicle_land_detected.maybe_landed && !_vehicle_land_detected.landed) {
@@ -955,7 +953,7 @@ SimulinkWrapper::run()
 	orb_unsubscribe(_sensor_combined_sub);
 	orb_unsubscribe(_vehicle_local_position_sub);
 
-	rateController.terminate();
+	RateControl.terminate();
 }
 
 int 
