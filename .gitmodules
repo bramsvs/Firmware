@@ -16,7 +16,7 @@
 	branch = master
 [submodule "Tools/sitl_gazebo"]
 	path = Tools/sitl_gazebo
-	url = https://github.com/PX4/sitl_gazebo.git
+	url = https://github.com/bramsvs/sitl_gazebo.git
 	branch = master
 [submodule "src/lib/matrix"]
 	path = src/lib/matrix
@@ -28,8 +28,8 @@
 	branch = master
 [submodule "src/lib/ecl"]
 	path = src/lib/ecl
-	url = https://github.com/PX4/ecl.git
-	branch = master
+	url = https://github.com/bramsvs/ecl.git
+	branch = damaged-drone
 [submodule "cmake/cmake_hexagon"]
 	path = cmake/cmake_hexagon
 	url = https://github.com/ATLFlight/cmake_hexagon.git
