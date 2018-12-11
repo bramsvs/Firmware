@@ -28,8 +28,8 @@
 	branch = master
 [submodule "src/lib/ecl"]
 	path = src/lib/ecl
-	url = https://github.com/PX4/ecl.git
-	branch = master
+	url = https://github.com/bramsvs/ecl.git
+	branch = damaged-drone
 [submodule "cmake/cmake_hexagon"]
 	path = cmake/cmake_hexagon
 	url = https://github.com/ATLFlight/cmake_hexagon.git
