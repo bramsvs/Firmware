@@ -6,6 +6,8 @@ float32[3]  rates_sp
 float32     thrust_sp
 float32     accel_z
 
+float32     dt_step     # time step takes (microseconds)
+
 # RateController.h:
 # typedef struct {
 #   real32_T rates[3];                   /* '<Root>/rates' */
