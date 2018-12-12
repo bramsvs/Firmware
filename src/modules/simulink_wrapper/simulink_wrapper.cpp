@@ -34,6 +34,9 @@
 /**
  * @file simulink_wrapper.c
  * Simulink connector
+ * 
+ * TODO:
+ * - remove land detector topic
  *
  * @author Bram Strack van Schijndel <bramsvs@gmail.com>
  */
@@ -85,11 +88,7 @@ SimulinkWrapper::print_usage(const char *reason)
 
 SimulinkWrapper::SimulinkWrapper() :
 	ModuleParams(nullptr),
-	_loop_perf(perf_alloc(PC_ELAPSED, "simulink_wrapper")),
-	_lp_filters_d{
-	{initial_update_rate_hz, 50.f},
-	{initial_update_rate_hz, 50.f},
-	{initial_update_rate_hz, 50.f}} // will be initialized correctly when params are loaded
+	_loop_perf(perf_alloc(PC_ELAPSED, "simulink_wrapper"))
 {
 	RateControl.initialize(); 
 
@@ -104,7 +103,6 @@ SimulinkWrapper::SimulinkWrapper() :
 	_v_att_sp.q_d[0] = 1.f;
 
 	_rates_prev.zero();
-	_rates_prev_filtered.zero();
 	_att_control_prev.zero();
 	_rates_sp.zero();
 	_rates_int.zero();
@@ -160,15 +158,6 @@ SimulinkWrapper::parameters_updated()
 	_rate_d(2) = _yaw_rate_d.get();
 	_rate_ff(2) = _yaw_rate_ff.get();
 
-	if (fabsf(_lp_filters_d[0].get_cutoff_freq() - _d_term_cutoff_freq.get()) > 0.01f) {
-		_lp_filters_d[0].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
-		_lp_filters_d[1].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
-		_lp_filters_d[2].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
-		_lp_filters_d[0].reset(_rates_prev(0));
-		_lp_filters_d[1].reset(_rates_prev(1));
-		_lp_filters_d[2].reset(_rates_prev(2));
-	}
-
 	/* angular rate limits */
 	_mc_rate_max(0) = math::radians(_roll_rate_max.get());
 	_mc_rate_max(1) = math::radians(_pitch_rate_max.get());
@@ -209,8 +198,6 @@ SimulinkWrapper::parameters_updated()
 	RateControlParams.az_eff = _att_az_eff.get();
 
 	RateControlParams.t_act = _att_t_act.get();
-
-	// t_indi = _sample_rate_max;
 }
 
 void
@@ -564,8 +551,12 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	rateControl_input.thrust_sp =_thrust_sp;
 
 	RateControl.RateControl_U = rateControl_input;
+
+	float t_step_start = hrt_absolute_time();
 	
-	RateControl.step0();
+	RateControl.step();
+
+	// `rate_control_input` logger
 
 	_rate_control_input.timestamp = hrt_absolute_time();
 	_rate_control_input.rates[0] = rateControl_input.rates[0];
@@ -576,9 +567,11 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	_rate_control_input.rates_sp[1] = rateControl_input.rates_sp[1];
 	_rate_control_input.rates_sp[2] = rateControl_input.rates_sp[2];
 
-	_rate_control_input.thrust_sp = rateControl_input.thrust_sp =_thrust_sp;
+	_rate_control_input.thrust_sp = rateControl_input.thrust_sp;
 
 	_rate_control_input.accel_z = rateControl_input.accel_z;
+
+	_rate_control_input.dt_step = hrt_absolute_time() - t_step_start;
 
 	// See mixer file `pass.main.mix` for exact control allocation.
 	_actuators.control[0] = RateControl.RateControl_Y.actuators_control[0];
@@ -586,75 +579,11 @@ SimulinkWrapper::control_attitude_rates(float dt)
 	_actuators.control[2] = RateControl.RateControl_Y.actuators_control[2];
 	_actuators.control[3] = RateControl.RateControl_Y.actuators_control[3];
 
-	// PX4_LOG("%f",_vehicle_local_position.az));
-	// PX4_LOG("%f",_sensor_combined.accelerometer_m_s2[2]));
-	// PX4_LOG("%f",_thrust_sp));
-	// PX4_INFO("%f",RateControl.ExtY_RateControl_T.G[15]));
-
-	// /* update integral only if we are not landed */
-	// if (!_vehicle_land_detected.maybe_landed && !_vehicle_land_detected.landed) {
-	// 	for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
-	// 		// Check for positive control saturation
-	// 		bool positive_saturation =
-	// 			((i == AXIS_INDEX_ROLL) && _saturation_status.flags.roll_pos) ||
-	// 			((i == AXIS_INDEX_PITCH) && _saturation_status.flags.pitch_pos) ||
-	// 			((i == AXIS_INDEX_YAW) && _saturation_status.flags.yaw_pos);
-
-	// 		// Check for negative control saturation
-	// 		bool negative_saturation =
-	// 			((i == AXIS_INDEX_ROLL) && _saturation_status.flags.roll_neg) ||
-	// 			((i == AXIS_INDEX_PITCH) && _saturation_status.flags.pitch_neg) ||
-	// 			((i == AXIS_INDEX_YAW) && _saturation_status.flags.yaw_neg);
-
-	// 		// prevent further positive control saturation
-	// 		if (positive_saturation) {
-	// 			PX4_WARN("Positive saturation");
-	// 			// rates_err(i) = math::min(rates_err(i), 0.0f);
-	// 			_att_control_increment(i) = math::min(_att_control_increment(i), 0.0f);
-				
-	// 		}
-
-	// 		// prevent further negative control saturation
-	// 		if (negative_saturation) {
-	// 			PX4_WARN("Negative saturation");
-	// 			// rates_err(i) = math::max(rates_err(i), 0.0f);
-	// 			_att_control_increment(i) = math::max(_att_control_increment(i), 0.0f);
-
-	// 		}
-
-	// 		// Perform the integration using a first order method and do not propagate the result if out of range or invalid
-	// 		// float rate_i = _rates_int(i) + rates_i_scaled(i) * rates_err(i) * dt;
-
-	// 		// if (PX4_ISFINITE(rate_i) && rate_i > -_rate_int_lim(i) && rate_i < _rate_int_lim(i)) {
-	// 		// 	_rates_int(i) = rate_i;
-
-	// 		// }
-
-	// 		float _att_control_i = _att_control(i) + _att_control_increment(i);
-
-	// bool inside_rate_limits =
-	//  	PX4_ISFINITE(_att_control_i) && 
-	//  	_att_control_i > -_rate_int_lim(i) && 
-	//  	_att_control_i < _rate_int_lim(i)
-	// if (inside_rate_limits) {
-	// 	_att_control(i) = _att_control_i;
-	// } else {
-	// 	// PX4_WARN("Att_control reached rate_int_limits on axis %i [%i]", i, number_errors);
-	// 	number_errors++;
-	// }
-	// 	}
-	// }
-
-	// /* explicitly limit the integrator state */
-	// // for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
-	// // 	_rates_int(i) = math::constrain(_rates_int(i), -_rate_int_lim(i), _rate_int_lim(i));
-
-	// // }
-
-	// for (int i = AXIS_INDEX_ROLL; i < AXIS_COUNT; i++) {
-	// 	_att_control(i) = math::constrain(_att_control(i), -_rate_int_lim(i), _rate_int_lim(i));
-
-	// }
+	/* publish actuator controls */
+	// _actuators.control[0] = (PX4_ISFINITE(_att_control(0))) ? _att_control(0) : 0.0f;
+	// _actuators.control[1] = (PX4_ISFINITE(_att_control(1))) ? _att_control(1) : 0.0f;
+	// _actuators.control[2] = (PX4_ISFINITE(_att_control(2))) ? _att_control(2) : 0.0f;
+	// _actuators.control[3] = (PX4_ISFINITE(_thrust_sp)) ? _thrust_sp : 0.0f;
 }
 
 void
@@ -695,10 +624,7 @@ SimulinkWrapper::run()
 
 	const hrt_abstime task_start = hrt_absolute_time();
 	hrt_abstime last_run = task_start;
-	float dt_accumulator = 0.f;
 	float dt_log_accumulator = 0.f;
-
-	int loop_counter = 0;
 
 	while (!should_exit()) {
 
@@ -731,11 +657,6 @@ SimulinkWrapper::run()
 			continue;
 		}
 
-		// if (loop_counter % 200 == 0) {
-		// 	PX4_WARN("%f, %f", dt, dt_min);
-		// }
-
-
 		/* run controller on gyro changes */
 		if (poll_fds.revents & POLLIN) {
 
@@ -755,7 +676,6 @@ SimulinkWrapper::run()
 				// PX4_INFO("ATT_DT: %f", dbg.value);
 				dt_log_accumulator = 0;
 			}
-
 
 			dt_log_accumulator += dt;
 
@@ -842,16 +762,6 @@ SimulinkWrapper::run()
 			if (_v_control_mode.flag_control_rates_enabled) {
 				control_attitude_rates(dt);
 
-				// _actuators.control[0] = 0.8f;
-				// _actuators.control[1] = 0.8f;
-				// _actuators.control[2] = 0.8f;
-				// _actuators.control[3] = 0.8f;
-				
-				/* publish actuator controls */
-				// _actuators.control[0] = (PX4_ISFINITE(_att_control(0))) ? _att_control(0) : 0.0f;
-				// _actuators.control[1] = (PX4_ISFINITE(_att_control(1))) ? _att_control(1) : 0.0f;
-				// _actuators.control[2] = (PX4_ISFINITE(_att_control(2))) ? _att_control(2) : 0.0f;
-				// _actuators.control[3] = (PX4_ISFINITE(_thrust_sp)) ? _thrust_sp : 0.0f;
 				_actuators.control[7] = _v_att_sp.landing_gear;
 				_actuators.timestamp = hrt_absolute_time();
 				_actuators.timestamp_sample = _sensor_gyro.timestamp;
@@ -881,7 +791,6 @@ SimulinkWrapper::run()
 				orb_publish_auto(ORB_ID(rate_ctrl_status), &_controller_status_pub, &rate_ctrl_status, &instance, ORB_PRIO_DEFAULT);
 
 				orb_publish(ORB_ID(rate_control_input), pub_rate_control_input, &_rate_control_input);
-
 			}
 
 			if (_v_control_mode.flag_control_termination_enabled) {
@@ -909,22 +818,6 @@ SimulinkWrapper::run()
 							_actuators_0_pub = orb_advertise(_actuators_id, &_actuators);
 						}
 					}
-				}
-			}
-
-			/* calculate loop update rate while disarmed or at least a few times (updating the filter is expensive) */
-			if (!_v_control_mode.flag_armed || (now - task_start) < 3300000) {
-				dt_accumulator += dt;
-				++loop_counter;
-
-				if (dt_accumulator > 1.f) {
-					const float loop_update_rate = (float)loop_counter / dt_accumulator;
-					_loop_update_rate_hz = _loop_update_rate_hz * 0.5f + loop_update_rate * 0.5f;
-					dt_accumulator = 0;
-					loop_counter = 0;
-					_lp_filters_d[0].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
-					_lp_filters_d[1].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
-					_lp_filters_d[2].set_cutoff_frequency(_loop_update_rate_hz, _d_term_cutoff_freq.get());
 				}
 			}
 
